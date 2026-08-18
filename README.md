@@ -140,3 +140,48 @@ and persona cards — but are informational only and never factor into Overall.
   and will simply no-op (not error) on apps that don't use it.
 - Not published to npm yet — install directly from this repo (git dependency or `npm pack` + local
   install) until a release is cut.
+
+## TODO / Roadmap
+
+- **Persona-driven `flow.json`** — add persona as a 4th input alongside PRD URL / free-form scenario /
+  live prototype URL in "Collect inputs". A supplied persona (role, goal, familiarity with the product)
+  would drive what the Playwright driver actually visits and clicks, the same way instruction mode
+  today turns a short scenario like `"create ticket flow"` into hand-authored `flow.json` entries —
+  except seeded by the persona's context instead of a bare feature name.
+  - Would **replace** (not add to) the 5 fixed generic personas currently hardcoded into Framework 4
+    (AI UT Simulation) — the same user-supplied persona(s) that shaped the exploration would also drive
+    the simulation narrative, so the two stay grounded in the same context instead of Framework 4
+    guessing generically over whatever got captured.
+  - Persona generation itself is out of scope here — expected to be built by a future contributor as
+    its own piece; this package would just need the input slot and the flow-generation logic to consume
+    it.
+  - Status: exploration only, not designed or scheduled yet.
+
+  **Dimensions to combine when generating a B2B SaaS persona** (starting reference, not exhaustive —
+  the two examples raised so far, New Subscriber and Power User, are really points on the *tenure* axis
+  below; a generator should mix axes, not just vary tenure):
+
+  | Axis | Range |
+  | --- | --- |
+  | **Tenure / lifecycle stage** | Trial/new subscriber (still exploring, needs guidance) → Ramping (weeks in, learning workflows) → Power user (years in, wants shortcuts/advanced features) → Dormant/churn-risk (was active, now disengaged — different needs, e.g. re-engagement) |
+  | **Role / seniority** | Front-line (agent doing the daily grind) → Team lead/supervisor (reports, QA, oversight) → Admin/owner (settings, billing, integrations) → IT/technical integrator (API, webhooks, SSO) |
+  | **Company size** | SMB/solo operator (one person wears every hat) → Mid-market (small dedicated team) → Enterprise (specialized roles, procurement/compliance involved) |
+  | **Industry / vertical** | e.g. for Qontak: retail/e-commerce, F&B, logistics, financial services, education, healthcare, professional services — shifts which features matter most (promo broadcast-heavy vs ticketing-heavy vs compliance-heavy) and which terms are familiar |
+  | **Technical literacy** | Non-technical (does everything through the UI) → Technical (has an IT/dev team, expects API access) |
+  | **Plan tier** | Free/Starter (feature-gated, price-sensitive) → Professional → Enterprise (expects SSO, advanced permissions, SLAs) |
+  | **Channel complexity** | Single-channel (e.g. just WhatsApp) → Omnichannel (WA + IG + email + call managed together) |
+  | **Engagement pattern** | Daily power-use (in the product for hours) → Occasional/casual (logs in monthly, forgets the UI between visits — ties to NNG H6 Recognition not recall) |
+  | **Language / accessibility** | Non-native speaker (copy clarity matters more — CHOICE Clear, NNG H2) → Screen reader / keyboard-only user (currently uncovered by any existing persona, worth its own archetype) |
+
+  **Archetypes not yet covered** by the current 5 fixed personas, worth having the generator produce:
+
+  - **Switcher** — migrated from a competitor's tool, has strong existing mental models that may
+    conflict with this product's patterns; compares constantly.
+  - **Trial evaluator** — hasn't paid yet, deciding whether to upgrade; sensitive to friction, paywalls,
+    and anything that looks like a dead end.
+  - **Internal champion** — the person who has to justify the tool to their own leadership; cares
+    disproportionately about reports/export/proof-of-ROI, not day-to-day usage.
+  - **Occasional/casual user** — the opposite of a power user on the *engagement* axis, not the
+    *tenure* axis; someone who's been a customer for years but only opens the product once a month.
+  - **Accessibility-need user** — screen reader or keyboard-only navigation; no current persona checks
+    this at all.
