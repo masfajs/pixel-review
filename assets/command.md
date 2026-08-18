@@ -26,7 +26,7 @@ run `/pixel-review` again. Do not proceed.
 **Step 2 — verify the Chromium browser binary is installed:**
 
 ```bash
-npx playwright install --dry-run chromium 2>&1 | grep -qi "is already installed" && echo "OK" || echo "MISSING"
+node -e "const {chromium}=require('@playwright/test');const fs=require('fs');process.exit(fs.existsSync(chromium.executablePath())?0:1)" && echo "OK" || echo "MISSING"
 ```
 
 If MISSING: stop and tell the user:
