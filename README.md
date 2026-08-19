@@ -30,7 +30,7 @@ npx playwright install chromium
 `http://localhost:3000`), then:
 
 ```
-/pixel-review http://localhost:3000
+/pixel-review request time off revamp http://localhost:3000
 ```
 
 **Automatically** — thanks to the Push workflow gate from `init`, Claude will also offer a review on
