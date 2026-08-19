@@ -42,23 +42,34 @@ If MISSING: stop and tell the user:
 
 ## Collect inputs
 
-Parse `$ARGUMENTS` (if provided) for:
+Resolve prototype URL, PRD URL, and flow/feature scope from these sources, in priority order — stop
+at the first source that supplies a given input, and never ask for something an earlier source
+already gave you:
 
-1. **Prototype URL** — any URL found in `$ARGUMENTS`. If none, ask the user (default
-   `http://localhost:3000`, accept a subpath like `/customers`).
-2. **PRD URL** _(optional)_ — a Confluence, Coda/Superhuman, or other doc URL among the URLs found.
-3. **Flow/feature instruction** _(optional)_ — the non-URL, natural-language part of `$ARGUMENTS`
-   describing what to review, e.g. `"create ticket flow"` in
-   `"create ticket flow https://prototype.example.com/tickets/all-tickets"`.
+1. **`$ARGUMENTS`** — any URL found is the prototype URL (or the PRD/doc URL, if it looks like
+   Confluence/Coda/Superhuman); non-URL text is the flow/feature instruction, e.g. `"create ticket
+   flow"` in `"create ticket flow https://prototype.example.com/tickets/all-tickets"`.
+2. **The current conversation**, if `/pixel-review` is running in the same session as the "vibe
+   coding" (implementing/iterating) work that came right before it — don't make the user restate
+   context you already have from watching them build it:
+   - **Flow/feature scope** — infer from what was just implemented: which routes/pages, which
+     feature or user story.
+   - **PRD URL** — reuse a Confluence/Coda/doc link already shared earlier in this conversation.
+   - **Prototype URL** — reuse a URL already established this session (e.g. from a `pnpm dev` run,
+     or a route already navigated to together).
+3. **Ask the user** — only for whatever steps 1–2 didn't supply:
+   - **Prototype URL** — default `http://localhost:3000` (accept a subpath like `/customers`).
+   - **PRD URL** _(optional)_ — Confluence, Coda/Superhuman, or any web URL with feature requirements.
+     Tell the user: "PRD URL is optional — skip it and PRD Coverage will be excluded from the score."
+   - **Flow/feature to focus on** _(optional, only ask if PRD URL was skipped)_ — tell the user: "You
+     can name a specific flow or feature (e.g. 'create ticket flow') to keep the review focused, or
+     leave this blank to let me explore the whole app."
 
-If no `$ARGUMENTS` were provided, ask the user for:
-
-1. **Prototype URL** — default `http://localhost:3000` (accept a subpath like `/customers`)
-2. **PRD URL** _(optional)_ — Confluence, Coda/Superhuman, or any web URL with feature requirements.
-   Tell the user: "PRD URL is optional — skip it and PRD Coverage will be excluded from the score."
-3. **Flow/feature to focus on** _(optional, only ask if PRD URL was skipped)_ — tell the user: "You can
-   name a specific flow or feature (e.g. 'create ticket flow') to keep the review focused, or leave
-   this blank to let me explore the whole app."
+If steps 1–2 already cover everything, **state what you inferred in one line** instead of opening with
+a question — e.g. "Review scope: create ticket flow at `/tickets/all-tickets`, no PRD." The user
+corrects you if it's wrong; they shouldn't have to answer from a blank slate when you already watched
+them build the thing. Only fall through to asking (step 3) when the scope is genuinely ambiguous — a
+fresh session with no prior context, or a vibe-coding session that touched several unrelated features.
 
 If the user skips PRD URL, set `prd_skipped = true`.
 
