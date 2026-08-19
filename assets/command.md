@@ -249,6 +249,19 @@ For each framework, produce a structured findings list internally:
 
 Severity: Critical | Major | Minor | Passed
 
+`principle` must be exactly one of the 6 CHOICE principle names or 10 NNG heuristic codes — no other
+spelling, since the report's JS keys its scoring off this exact string:
+
+- CHOICE: `Clear`, `Holistic`, `Open`, `Individual`, `Contextual`, `Emotional`
+- NNG: `H1`, `H2`, `H3`, `H4`, `H5`, `H6`, `H7`, `H8`, `H9`, `H10`
+
+You do **not** compute a numeric CHOICE, NNG, Overall, or verdict score anywhere — the report's
+JavaScript computes all of them from the findings you tag (severity + principle), both on page load
+and live whenever a finding is marked "Abaikan" in the browser. See "Scoring" below for the exact
+mechanism, and never state a specific score number in `{{HEADLINE}}`/`{{SUBTITLE_HTML}}` or any other
+prose — you don't know what the client-side computation will render; describe findings qualitatively
+instead.
+
 Screenshot a state only when a finding of Minor severity or above is identified. Passed states → no
 screenshot in the report.
 
@@ -277,23 +290,25 @@ The gap table rows (only `<tr>` elements, no wrappers) go into `{{PRD_GAP_ROWS_H
 
 ### Framework 2 — CHOICE Principles
 
-Evaluate each of the 6 principles (C, H, O, I, C, E) across all screens, using
-`node_modules/pixel-review/assets/principles.md` `## CHOICE Principles`.
+Evaluate each of the 6 principles (Clear, Holistic, Open, Individual, Contextual, Emotional) across
+all screens, using `node_modules/pixel-review/assets/principles.md` `## CHOICE Principles`.
 
-For each principle, note screens where it is satisfied and screens where it falls short.
+For each principle, note screens where it is satisfied and screens where it falls short — every
+finding recorded here needs a severity, since the score comes entirely from the findings you tag
+(see "Scoring" below).
 
-Score: average of 6 principle scores (each 0–100).
+Use inline reference format: `CHOICE · Clear`
 
 ---
 
 ### Framework 3 — NNG Heuristics
 
 Evaluate all 10 heuristics from `node_modules/pixel-review/assets/principles.md`
-`## NNG 10 Usability Heuristics`. For each heuristic, check every screen.
+`## NNG 10 Usability Heuristics`. For each heuristic, check every screen — every finding recorded
+here needs a severity, since the score comes entirely from the findings you tag (see "Scoring"
+below).
 
-Use inline reference format: `H4 · Consistency`
-
-Score: (heuristics fully satisfied / 10) × 100.
+Use inline reference format: `NNG · H4`
 
 ---
 
@@ -320,10 +335,35 @@ Score: (tasks completed or completed with difficulty) / 5 × 100.
 
 ---
 
-### Overall score
+### Scoring — computed entirely client-side, never by you
 
-`Overall = round(SCORE_CHOICE × 0.6 + SCORE_NNG × 0.4)`. Only CHOICE and NNG feed this number — PRD
-Coverage and AI UT Simulation scores are never part of it, even when both are computed and shown.
+CHOICE, NNG, Overall, and the verdict badge/legend are **computed by the report's own JavaScript**
+from the findings you tagged with severity + principle — not authored by you, and not baked into any
+`{{SCORE_*}}` / `{{VERDICT_*}}` placeholder (those placeholders don't exist in the template). This
+runs identically on page load and again every time a viewer marks a finding "Abaikan" in the browser
+— there is no separate "baseline" number for you to compute.
+
+The exact mechanism, so you understand what the report will show even though you don't compute it:
+
+- Each of the 6 CHOICE principles starts at 100 points; each of the 10 NNG heuristics starts at 10
+  points. Every **active** (not dismissed) finding tagged to a principle/heuristic deducts from it:
+
+  | Severity | CHOICE (per principle, starts 100) | NNG (per heuristic, starts 10) |
+  | -------- | ----------------------------------- | -------------------------------- |
+  | Critical | −40                                  | −10                               |
+  | Major    | −20                                  | −5                                |
+  | Minor    | −8                                   | −2                                |
+
+  (Multiple findings on the same principle/heuristic sum their deductions, floored at 0. The CHOICE
+  column is exactly 4× the NNG column — deliberate: NNG sums its 10 heuristics directly into
+  `Overall × 0.4`, while CHOICE averages its 6 principles into `Overall × 0.6`, so 1 NNG point is
+  worth 4× the Overall impact of 1 CHOICE point; the 4× deduction equalizes a Critical/Major/Minor
+  finding's real impact on Overall regardless of which framework it's in.)
+
+- `CHOICE = average of the 6 principle scores`. `NNG = sum of the 10 heuristic scores` (already
+  0–100, no averaging). `Overall = round(CHOICE × 0.6 + NNG × 0.4)`.
+- PRD Coverage and AI UT Simulation scores are never part of Overall, even when both are computed and
+  shown in the report.
 
 ---
 
@@ -355,35 +395,24 @@ node /tmp/gen-pixel-report.mjs
 | Placeholder                   | What to put                                                                                                                                                                       |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `{{TITLE}}`                   | `Pixel Review — <page-name> — branch: <branch>`                                                                                                                                   |
-| `{{VERDICT_BADGE}}`           | e.g. `&#9888; Needs Polish` or `&#10003; Ready`                                                                                                                                   |
-| `{{HEADLINE}}`                | One punchy sentence summarising the overall finding                                                                                                                               |
-| `{{SUBTITLE_HTML}}`           | 2–3 sentence executive summary; wrap key terms in `<strong>`                                                                                                                      |
+| `{{HEADLINE}}`                | One punchy sentence summarising the overall finding — **no score number**, describe qualitatively   |
+| `{{SUBTITLE_HTML}}`           | 2–3 sentence executive summary; wrap key terms in `<strong>` — **no score number** either            |
 | `{{PROTOTYPE_URL}}`           | Full URL including path                                                                                                                                                           |
 | `{{REVIEW_DATE}}`             | ISO date e.g. `2026-08-12`                                                                                                                                                        |
 | `{{META_STATS}}`              | e.g. `3 rute · 7 states · 19 US dikaji`                                                                                                                                           |
-| `{{SCORE_OVERALL}}`           | Integer 0–100 — `round(SCORE_CHOICE × 0.6 + SCORE_NNG × 0.4)`                                                                                                                     |
-| `{{SCORE_CHOICE}}`            | Integer 0–100                                                                                                                                                                     |
-| `{{SCORE_NNG}}`               | Integer 0–100                                                                                                                                                                     |
-| `{{SCORE_LEGEND_HTML}}`       | Four `<span>` tags; add `data-current=""` to the matching band (see below)                                                                                                        |
 | `{{PRD_GAP_ROWS_HTML}}`       | Only the `<tr>` rows for each US; if PRD skipped, inject one row: `<tr><td colspan="4" style="text-align:center;color:var(--mp-text-placeholder)">PRD tidak disertakan</td></tr>` |
-| `{{WALKTHROUGH_STATES_HTML}}` | All state cards (see HTML comments in template for structure)                                                                                                                     |
+| `{{WALKTHROUGH_STATES_HTML}}` | One card per state with a Minor+ finding only — skip Passed states, no card for them. Count is not fixed. See HTML comments in template for card markup structure.                |
 | `{{CROSSFLOW_TITLE}}`         | Section 02 heading e.g. `CHOICE & NNG — Keseluruhan Halaman`                                                                                                                      |
 | `{{CROSSFLOW_ANALYSIS_HTML}}` | Cross-flow prose paragraph                                                                                                                                                        |
 | `{{AI_UT_PERSONAS_HTML}}`     | All persona cards (see HTML comments in template)                                                                                                                                 |
 | `{{AI_UT_INSIGHT}}`           | 1–2 sentence aggregate insight across personas                                                                                                                                    |
-| `{{FD_JSON}}`                 | JS object: `{ fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Major\|Minor' }, ... }`                                                                                |
-| `{{VERDICT_TEXT}}`            | e.g. `Needs Polish` (used in export markdown)                                                                                                                                     |
+| `{{FD_JSON}}`                 | JS object: `{ fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical\|Major\|Minor' } }` — the report's JS computes CHOICE/NNG/Overall/verdict from this, see "Scoring" above |
 | `{{PRD_SCORE}}`               | Score integer or `N/A`                                                                                                                                                            |
 | `{{EXPORT_FILENAME}}`         | `<branch-slug>-<YYYYMMDD>[-N]-pixel-review.md`                                                                                                                                    |
 
-**Score legend HTML pattern** — add `data-current=""` only to the matching band:
-
-```html
-<span>0–49 Not Ready</span>
-<span>50–69 Needs Work</span>
-<span data-current>70–84 Needs Polish</span>
-<span>85–100 Ready</span>
-```
+`{{SCORE_OVERALL}}`, `{{SCORE_CHOICE}}`, `{{SCORE_NNG}}`, `{{VERDICT_BADGE}}`, `{{VERDICT_TEXT}}`, and
+`{{SCORE_LEGEND_HTML}}` **do not exist as placeholders** — the template computes and fills all of them
+client-side from `{{FD_JSON}}` (see "Scoring" above). Do not try to fill them in.
 
 All screenshots are embedded as `data:image/png;base64,...` from result.json — no external files.
 

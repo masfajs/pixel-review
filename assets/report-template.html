@@ -863,7 +863,7 @@
       <header class="masthead">
         <div class="eyebrow">
           Pixel Review &middot; Design Audit
-          <span class="stat-verdict" style="margin-left: 8px">{{VERDICT_BADGE}}</span>
+          <span class="stat-verdict" id="verdict-badge" style="margin-left: 8px"></span>
         </div>
         <h1 class="title">{{HEADLINE}}</h1>
         <p class="subtitle">{{SUBTITLE_HTML}}</p>
@@ -879,22 +879,26 @@
 
         <div class="stat-strip">
           <div class="stat-cell">
-            <span class="stat-val score-main">{{SCORE_OVERALL}}</span>
+            <span class="stat-val score-main" id="stat-overall"></span>
             <span class="stat-label">Overall</span>
           </div>
           <div class="stat-cell">
-            <span class="stat-val">{{SCORE_CHOICE}}</span>
+            <span class="stat-val" id="stat-choice"></span>
             <span class="stat-label">CHOICE</span>
           </div>
           <div class="stat-cell">
-            <span class="stat-val">{{SCORE_NNG}}</span>
+            <span class="stat-val" id="stat-nng"></span>
             <span class="stat-label">NNG</span>
           </div>
         </div>
 
-        <!-- Score legend: add data-current="" to the matching band based on SCORE_OVERALL -->
-        <!-- 0-49 = Not Ready, 50-69 = Needs Work, 70-84 = Needs Polish, 85-100 = Ready -->
-        <div class="score-legend">{{SCORE_LEGEND_HTML}}</div>
+        <!-- Score legend: fixed 4 bands — computeScores() sets data-current on load, not authored -->
+        <div class="score-legend">
+          <span data-band="not-ready">0–49 Not Ready</span>
+          <span data-band="needs-work">50–69 Needs Work</span>
+          <span data-band="needs-polish">70–84 Needs Polish</span>
+          <span data-band="ready">85–100 Ready</span>
+        </div>
       </header>
 
       <!-- ─── Walkthrough ─── -->
@@ -906,6 +910,9 @@
         </div>
         {{WALKTHROUGH_STATES_HTML}}
         <!--
+    Emit one card per state that has a Minor+ finding only. Passed states get no card here — skip
+    them entirely. The number of cards is not fixed and varies per review.
+
     Each state card uses this structure:
 
     <div class="state-card">
@@ -1048,12 +1055,68 @@
 
     <script>
       // fd: finding data — populated by Claude when generating the report.
-      // Format: { fN: { d: 'title', sc: 'Screen/State', fw: 'FRAMEWORK · Principle', sv: 'Major|Minor' }, ... }
+      // Format: { fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical|Major|Minor' } }
       const fd = {{FD_JSON}};
+
+      const CHOICE_PRINCIPLES = ['Clear', 'Holistic', 'Open', 'Individual', 'Contextual', 'Emotional'];
+      const NNG_HEURISTICS = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9', 'H10'];
+
+      // Deduction per finding, by severity — calibrated so a Critical/Major/Minor finding costs the
+      // same ~4 Overall points regardless of framework. NNG sums 10 heuristics directly into
+      // Overall*0.4 (no averaging); CHOICE averages 6 principles into Overall*0.6 — so 1 NNG point is
+      // worth 4x the Overall weight of 1 CHOICE point, hence CHOICE's deductions are 4x NNG's.
+      const DEDUCTION = {
+        CHOICE: { Critical: 40, Major: 20, Minor: 8 },
+        NNG: { Critical: 10, Major: 5, Minor: 2 }
+      };
+
+      function bandFor(score) {
+        if (score >= 85) return { band: 'ready', badge: '✓ Ready', text: 'Ready' };
+        if (score >= 70) return { band: 'needs-polish', badge: '⚠ Needs Polish', text: 'Needs Polish' };
+        if (score >= 50) return { band: 'needs-work', badge: '🔶 Needs Work', text: 'Needs Work' };
+        return { band: 'not-ready', badge: '🔴 Not Ready', text: 'Not Ready' };
+      }
+
+      // Pure function of (severity, principle/heuristic) pairs from active (non-dismissed) findings —
+      // no separately-authored baseline. Runs identically on page load and after every decision change.
+      function computeScores() {
+        const principle = Object.fromEntries(CHOICE_PRINCIPLES.map((p) => [p, 100]));
+        const heuristic = Object.fromEntries(NNG_HEURISTICS.map((h) => [h, 10]));
+
+        for (const [id, f] of Object.entries(fd)) {
+          const active = document.querySelector('#' + id + ' .sel-opt.active');
+          if (active?.dataset.action === 'ignore') continue;
+          const [fw, key] = f.fw.split('·').map((s) => s.trim());
+          const table = DEDUCTION[fw.toUpperCase()];
+          const points = table?.[f.sv];
+          if (!points) continue;
+          if (fw.toUpperCase() === 'CHOICE' && key in principle) principle[key] -= points;
+          else if (fw.toUpperCase() === 'NNG' && key in heuristic) heuristic[key] -= points;
+        }
+        for (const k in principle) principle[k] = Math.max(0, principle[k]);
+        for (const k in heuristic) heuristic[k] = Math.max(0, heuristic[k]);
+
+        const choice = Math.round(CHOICE_PRINCIPLES.reduce((s, p) => s + principle[p], 0) / 6);
+        const nng = NNG_HEURISTICS.reduce((s, h) => s + heuristic[h], 0);
+        const overall = Math.round(choice * 0.6 + nng * 0.4);
+        const { band, badge, text } = bandFor(overall);
+
+        document.getElementById('stat-overall').textContent = overall;
+        document.getElementById('stat-choice').textContent = choice;
+        document.getElementById('stat-nng').textContent = nng;
+        document.getElementById('verdict-badge').textContent = badge;
+        document.querySelectorAll('.score-legend span[data-band]').forEach((el) => el.removeAttribute('data-current'));
+        document.querySelector('.score-legend span[data-band="' + band + '"]')?.setAttribute('data-current', '');
+
+        return { overall, choice, nng, verdictText: text };
+      }
+
+      computeScores(); // initial render — same function, same math, nothing LLM-authored
 
       function selectDecision(btn, id) {
         btn.closest('.decision-sel').querySelectorAll('.sel-opt').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        computeScores();
       }
 
       function expandShot(img) {
@@ -1064,6 +1127,7 @@
       document.addEventListener('keydown', e => { if (e.key === 'Escape') closeExpand(); });
 
       function exportMd() {
+        const live = computeScores();
         const groups = { ai: [], discuss: [], pending: [], ignored: [] };
         for (const [id, d] of Object.entries(fd)) {
           const activeBtn = document.querySelector('#' + id + ' .sel-opt.active');
@@ -1080,12 +1144,12 @@
           '> File ini adalah export keputusan design review. Attach ke sesi Claude Code untuk menindaklanjuti.',
           '> Tiap finding sudah diberi keputusan: **Fix**, **Diskusi**, atau **Abaikan**.',
           '',
-          '**Overall: {{SCORE_OVERALL}}/100 — {{VERDICT_TEXT}}**',
+          `**Overall: ${live.overall}/100 — ${live.verdictText}**`,
           '',
           '| Framework | Score |',
           '|---|---|',
-          '| CHOICE | {{SCORE_CHOICE}} |',
-          '| NNG | {{SCORE_NNG}} |',
+          `| CHOICE | ${live.choice} |`,
+          `| NNG | ${live.nng} |`,
           '| PRD (informational) | {{PRD_SCORE}} |',
           '',
         ];
