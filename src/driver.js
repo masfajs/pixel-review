@@ -278,10 +278,45 @@ async function executeFlowStep(page, trigger) {
     } else if (step.startsWith("wait:")) {
       await page.waitForTimeout(parseInt(step.slice(5), 10));
     } else if (step === "scroll") {
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      // Scroll the page AND the tallest inner scroll container. An app shell that pins its
+      // header and footer gives the window nothing to scroll, so `scroll` alone screenshots
+      // the top of the page forever and every section below the fold reads as missing.
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+        const scrollers = Array.from(document.querySelectorAll("*")).filter((el) => {
+          const cs = getComputedStyle(el);
+          return /auto|scroll/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 40;
+        });
+        scrollers.sort((a, b) => b.scrollHeight - a.scrollHeight);
+        if (scrollers[0]) scrollers[0].scrollTop = scrollers[0].scrollHeight;
+      });
+      await page.waitForTimeout(400);
+    } else if (step.startsWith("scroll-in:")) {
+      // Scroll one named container, for pages with several independent scroll panes.
+      const sel = step.slice(10);
+      await page.evaluate((s) => {
+        const el = document.querySelector(s);
+        if (el) el.scrollTop = el.scrollHeight;
+      }, sel);
+      await page.waitForTimeout(400);
+    } else if (step.startsWith("scroll-to-text:")) {
+      // Bring a section into view by its heading, which survives layout changes that a
+      // pixel offset or a selector would not.
+      const label = step.slice(15);
+      await page.evaluate((t) => {
+        const el = Array.from(document.querySelectorAll("*")).find(
+          (n) => n.children.length === 0 && n.textContent.trim() === t
+        );
+        if (el) el.scrollIntoView({ block: "center" });
+      }, label);
       await page.waitForTimeout(400);
     } else if (step === "scroll-top") {
-      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+        document.querySelectorAll("*").forEach((el) => {
+          if (el.scrollTop > 0) el.scrollTop = 0;
+        });
+      });
     } else if (step.startsWith("key:")) {
       await page.keyboard.press(step.slice(4)).catch(() => {});
     } else if (step.startsWith("hover:")) {
