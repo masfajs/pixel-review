@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // Playwright automation driver for the /pixel-review Claude Code command.
-// Called by the command as: node node_modules/pixel-review/src/driver.js --url <url> --out-dir <path> [--flow-config <path>] [--routes r1,r2] [--max-routes 20] [--no-profile]
+// Called by the command as: node node_modules/pixel-review/src/driver.js --url <url> --out-dir <path> [--flow-config <path>] [--routes r1,r2] [--max-routes 20] [--no-profile] [--local-storage k=v,k2=v2]
+// --local-storage: "key=value" pairs, comma-separated. Seeded via addInitScript so they are
+// present BEFORE the app boots on every navigation — a prototype that reads a flag at startup
+// (demo mode, feature toggles) cannot be reached by setting storage after load, and a
+// post-navigation trigger step would need a reload dance on every route.
 
 import { chromium } from "@playwright/test";
 import fs from "fs";
@@ -40,6 +44,18 @@ const targetRoutes = args.routes
       .split(",")
       .map((r) => r.trim())
       .filter(Boolean)
+  : null;
+const localStorageSeed = args["local-storage"]
+  ? Object.fromEntries(
+      args["local-storage"]
+        .split(",")
+        .map((pair) => pair.trim())
+        .filter(Boolean)
+        .map((pair) => {
+          const at = pair.indexOf("=");
+          return at === -1 ? [pair, "true"] : [pair.slice(0, at), pair.slice(at + 1)];
+        })
+    )
   : null;
 
 if (!prototypeUrl || !outDir) {
@@ -226,7 +242,20 @@ async function executeFlowStep(page, trigger) {
     .map((s) => s.trim())
     .filter(Boolean);
   for (const step of steps) {
-    if (step.startsWith("click:")) {
+    if (step.startsWith("click-nth:")) {
+      // click-nth:<selector>|<index> — clicks the index-th (0-based) match.
+      // Needed for forms with several identical custom controls, e.g. a page with
+      // multiple [role=combobox] selects where only the first is reachable by
+      // `click:` and none carry a unique id of their own.
+      // Uses Playwright's real (trusted) click, not element.click() — some design
+      // systems' popovers ignore synthetic clicks, so an evaluate-based click
+      // silently fails to open them.
+      const rest = step.slice(10);
+      const sepIdx = rest.lastIndexOf("|");
+      const sel = sepIdx === -1 ? rest : rest.slice(0, sepIdx);
+      const idx = sepIdx === -1 ? 0 : Number(rest.slice(sepIdx + 1)) || 0;
+      await page.click(`${sel} >> nth=${idx}`, { timeout: 5000 }).catch(() => {});
+    } else if (step.startsWith("click:")) {
       const sel = step.slice(6);
       await page.click(sel, { timeout: 5000 }).catch(() => {});
     } else if (step.startsWith("click-text:")) {
@@ -256,7 +285,21 @@ async function executeFlowStep(page, trigger) {
           const el = matches.find(
             (e) => !matches.some((other) => other !== e && e.contains(other))
           );
-          (el || matches[0])?.click();
+          if (el || matches[0]) {
+            (el || matches[0]).click();
+            return;
+          }
+          // Fallback for multi-line option rows (e.g. an autocomplete renders the
+          // label on line 1 and a secondary value on line 2, so the row's textContent
+          // is "LabelPhone" and never equals the label exactly). Match rows that
+          // START with the label, take the innermost, and click the row itself —
+          // an inner <p> often carries no handler.
+          const near = candidates.filter((e) => {
+            const txt = e.textContent?.trim() ?? "";
+            return txt.startsWith(t) && txt.length <= t.length + 40;
+          });
+          const inner = near.find((e) => !near.some((o) => o !== e && e.contains(o)));
+          (inner || near[0])?.click();
         }, text)
         .catch(() => {});
     } else if (step.startsWith("type:")) {
@@ -319,6 +362,33 @@ async function executeFlowStep(page, trigger) {
       });
     } else if (step.startsWith("key:")) {
       await page.keyboard.press(step.slice(4)).catch(() => {});
+    } else if (step.startsWith("hover-text:")) {
+      // hover-text:<label> — hover a row by its exact visible text rather than a CSS
+      // selector. Needed for cascading menus that open a submenu on mouseenter and give
+      // the row no stable selector.
+      // Uses Playwright's real mouse movement, not a synthetic MouseEvent: many frameworks'
+      // @mouseenter does not bubble, so a dispatched event on an inner text node never
+      // reaches a handler bound to the row wrapper.
+      const text = step.slice(11);
+      await page
+        .getByText(text, { exact: true })
+        .first()
+        .hover({ timeout: 5000 })
+        .catch(() => {});
+    } else if (step.startsWith("click-in:")) {
+      // click-in:<container-selector>|<label> — click by exact text, scoped to a
+      // container. Some design systems keep every popover's content mounted whether it
+      // is open or not, so an unscoped text match can hit a row inside a closed popover.
+      const rest = step.slice(9);
+      const sepIdx = rest.indexOf("|");
+      const sel = rest.slice(0, sepIdx);
+      const label = rest.slice(sepIdx + 1);
+      await page
+        .locator(sel)
+        .getByText(label, { exact: true })
+        .first()
+        .click({ timeout: 5000 })
+        .catch(() => {});
     } else if (step.startsWith("hover:")) {
       await page.hover(step.slice(6), { timeout: 5000 }).catch(() => {});
     } else if (step.startsWith("navigate:")) {
@@ -534,6 +604,17 @@ async function exploreRoute(page, url) {
   });
 
   const page = await context.newPage();
+
+  if (localStorageSeed) {
+    await page.addInitScript((seed) => {
+      try {
+        for (const [k, v] of Object.entries(seed)) window.localStorage.setItem(k, v);
+      } catch {
+        /* private mode or blocked storage — the run continues without the seed */
+      }
+    }, localStorageSeed);
+    console.log(`  🔑 localStorage seeded: ${Object.keys(localStorageSeed).join(", ")}\n`);
+  }
 
   const screens = [];
   const errors = [];
