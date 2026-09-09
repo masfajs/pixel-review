@@ -150,6 +150,11 @@ checks whether the roster needs supplementing to reach the target participant co
 research MCP connected; the whole feature works with zero MCP access, using just your PRD and your own
 input.
 
+**Personas from step 3 or 5 carry their full evidence-cited dossier into the report as-is** (role &
+work, behavior, cited requests, day-in-the-life) — never compressed into a name-plus-quote summary.
+Personas from your PRD or your own input (steps 1–2) use a simpler task/quote/completion card instead,
+since they don't have a research dossier behind them.
+
 **Multiple personas means multiple Playwright passes** — each persona gets its own `flow.json` and its
 own exploration run, since a new employee and a power user genuinely take different paths. This scales
 wall-clock time with roster size, but not meaningfully cost: Playwright execution and HTML generation

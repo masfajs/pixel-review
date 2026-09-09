@@ -579,6 +579,56 @@
         white-space: nowrap;
       }
 
+      /* Persona dossier — full User Synthetic dossier body, used instead of .persona-body for
+         hasDossier:true personas (MCP library or freshly cast), rendered verbatim, never compressed */
+      .persona-dossier {
+        padding: 13px 15px;
+      }
+      .dossier-block {
+        margin-bottom: 14px;
+      }
+      .dossier-block:last-child {
+        margin-bottom: 0;
+      }
+      .dossier-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--mp-text-placeholder);
+        margin-bottom: 6px;
+      }
+      .dossier-list {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 14px;
+        color: var(--mp-text-default);
+        line-height: 20px;
+      }
+      .dossier-list li {
+        margin-bottom: 4px;
+      }
+      .dossier-cite {
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 10px;
+        color: var(--mp-background-brand-bold);
+        margin-left: 4px;
+      }
+      .dossier-day {
+        font-size: 14px;
+        color: var(--mp-text-default);
+        line-height: 21px;
+      }
+      .dossier-sources {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--mp-border-default);
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 10.5px;
+        color: var(--mp-text-placeholder);
+        line-height: 17px;
+      }
+
       .callout {
         display: flex;
         align-items: flex-start;
@@ -1021,10 +1071,51 @@
       [... repeat state-card per Minor+ state for this persona ...]
     </div>
 
+    [The tab-pane above used .persona-body — for a PRD-table or user-input persona (no dossier). A
+    persona with hasDossier:true (from the MCP persona library or a freshly cast panel) uses
+    .persona-dossier INSTEAD of .persona-body, rendering pack.render.dossier verbatim — never
+    compressed to name/task/quote. Example:]
+
     <div class="tab-pane" id="tab-persona-slug-2" data-persona="persona-slug-2">
-      [same structure as tab-persona-slug-1, for the next persona]
+      <div class="persona-card" style="margin-bottom: 16px">
+        <div class="persona-head">
+          <div class="persona-av" style="background:#FFF4E5;color:#B76E00">P</div>
+          <div>
+            <div class="persona-name">Name</div>
+            <div class="persona-role">Role · Title</div>
+          </div>
+          <span class="tab-mini-score" id="score-persona-slug-2"></span>
+        </div>
+        <div class="persona-dossier">
+          <div class="dossier-block">
+            <div class="dossier-label">Peran &amp; Pekerjaan</div>
+            <ul class="dossier-list">
+              <li>Role-work point, ≥2 items<span class="dossier-cite">[nps:1234]</span></li>
+              <li>Another role-work point</li>
+            </ul>
+          </div>
+          <div class="dossier-block">
+            <div class="dossier-label">Perilaku</div>
+            <ul class="dossier-list">
+              <li>Behavior point, ≥4 items total across this list</li>
+            </ul>
+          </div>
+          <div class="dossier-block">
+            <div class="dossier-label">Permintaan &amp; Pain Points</div>
+            <ul class="dossier-list">
+              <li>Cited claim, ≥2 items, each with a citation<span class="dossier-cite">[lib:cdp/customer-segmentation/ut-2026-01-30/README.md]</span></li>
+            </ul>
+          </div>
+          <div class="dossier-block">
+            <div class="dossier-label">Day in the Life</div>
+            <p class="dossier-day">120–250 word narrative in Bahasa Indonesia, in character, grounded in the cited evidence above — not invented.</p>
+          </div>
+          <div class="dossier-sources">Sumber: nps:1234, lib:cdp/customer-segmentation/ut-2026-01-30/README.md</div>
+        </div>
+      </div>
+      [same walkthrough state-card structure as tab-persona-slug-1 follows here]
     </div>
-    [... one tab-pane per persona ...]
+    [... one tab-pane per persona, .persona-body or .persona-dossier depending on hasDossier ...]
   -->
       </div>
 

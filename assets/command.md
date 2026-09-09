@@ -120,6 +120,15 @@ If the user skips PRD URL, set `prd_skipped = true`.
    If no MCP tools are available at all in this session, silently skip (c)/(d)/(e) — don't nag the user
    about a tool they don't have.
 
+   **Dossier personas (sources c and e) keep their full User Synthetic dossier — never compressed.**
+   A persona resolved from (c) the MCP persona library or (e) a freshly cast panel comes with a full
+   dossier (role & work, behavior patterns, cited requests/pain points, a 120–250 word day-in-the-life,
+   and citations — per `pack.prompts.cast`/`pack.render.dossier`). Mark this persona `hasDossier: true`
+   and carry the **entire** dossier through to the report tab in "Generate HTML report" below verbatim
+   — the MCP protocol itself is explicit that "a name-plus-two-lines summary is a violation." Personas
+   from (a) the PRD table or (b) your own input have no dossier and use the plain persona-card format
+   instead — don't invent a fake dossier for them.
+
    **Target participant count** (relevant only if (e) may trigger): look for an explicit count in the
    fetched PRD/research-plan text (e.g. "test with 5 users"). If absent, propose **3** as part of the
    mode-confirmation step below — adjustable by the user before proceeding.
@@ -426,13 +435,16 @@ Simulate each persona in the roster resolved in "Collect inputs" step 4, each na
 walkthrough/trace — not one shared walkthrough narrated N ways. Base each persona's narrative strictly
 on their own `result.json` (or their share of the deduped multi-persona run). Each persona has:
 
-- Background, role, goals (from whichever roster source supplied them)
-- Primary task they'd attempt, informed by their goal and — if prior UT/concept-test research on this
-  feature was found (Collect inputs step 4d) — specifically re-probing any known friction points
-  rather than only a generic happy path
-- Findings from their perspective, drawn from their own flow.json run
-- A simulated quote (first-person, realistic)
-- Task completion: **Berhasil** / **Berhasil dengan kesulitan** / **Gagal**
+- If `hasDossier: true` (Collect inputs step 4, sources c/e): their **full User Synthetic dossier**
+  verbatim — role & work, behavior patterns, cited requests/pain points, day-in-the-life, citations.
+  Do not compress this into the fields below; render it in the report exactly as `pack.render.dossier`
+  produced it.
+- Otherwise (sources a/b, or the fallback list): Background, role, goals; primary task they'd attempt,
+  informed by their goal and — if prior UT/concept-test research on this feature was found (Collect
+  inputs step 4d) — specifically re-probing any known friction points rather than only a generic happy
+  path; a simulated quote (first-person, realistic)
+- Both cases: findings from their perspective, drawn from their own flow.json run, and task completion:
+  **Berhasil** / **Berhasil dengan kesulitan** / **Gagal**
 
 If the roster fell all the way through to the fallback (Collect inputs step 4f — no PRD table, no user
 input, no MCP available, or MCP declined), use this literal generic starting set instead (adjust
@@ -518,7 +530,7 @@ node /tmp/gen-pixel-report.mjs
 | `{{CROSSFLOW_TITLE}}`         | Section 02 heading e.g. `CHOICE & NNG — Keseluruhan Halaman`                                                                                                                      |
 | `{{CROSSFLOW_ANALYSIS_HTML}}` | Cross-flow prose paragraph                                                                                                                                                        |
 | `{{AI_UT_INSIGHT}}`           | 1–2 sentence aggregate insight across ALL personas — sits above the persona tab bar, not inside a tab |
-| `{{PERSONA_TABS_HTML}}`       | One tab button + one tab pane per persona in the resolved roster. Each pane = that persona's header (name/role), their mini CHOICE/NNG score line, task/quote/completion status, then their own walkthrough state cards (Minor+ findings only, same rule as before). Replaces the old separate Walkthrough/AI-UT-Simulation placeholders — see HTML comments in template for exact markup |
+| `{{PERSONA_TABS_HTML}}`       | One tab button + one tab pane per persona in the resolved roster. Each pane = that persona's header (name/role, mini CHOICE/NNG score line) + body + their own walkthrough state cards (Minor+ findings only, same rule as before). Body is either `.persona-dossier` (full User Synthetic dossier, verbatim, for `hasDossier: true` personas) or `.persona-body` (task/quote/completion status, for PRD-table/user-input personas) — see HTML comments in template for both markups |
 | `{{FD_JSON}}`                 | JS object: `{ fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical\|Major\|Minor', p:['persona-slug', ...] } }` — `p` lists every persona-slug who encountered this finding's state (single entry normally, multiple when deduped across personas). The report's JS computes CHOICE/NNG/Overall/verdict (and, per persona, a filtered sub-score) from this, see "Scoring" above |
 | `{{PRD_SCORE}}`               | Score integer or `N/A`                                                                                                                                                            |
 | `{{EXPORT_FILENAME}}`         | `<branch-slug>-<YYYYMMDD>[-N]-pixel-review.md`                                                                                                                                    |
