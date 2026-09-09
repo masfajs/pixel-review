@@ -53,9 +53,10 @@ and after a few minutes writes an HTML report and opens it in your browser.
 | Section              | What it tells you                                                                                                     |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | **Score strip**       | Overall / CHOICE / NNG, each 0–100. See [Design principles & scoring](#design-principles--scoring).                   |
-| **01 · Walkthrough & AI UT Simulation** | One tab per persona in the resolved roster (from your PRD's target-users table, your own input, Mekari's internal persona library, a freshly cast synthetic panel, or — as a last resort — 5 generic role personas). Each tab shows that persona's own screenshots/findings (tagged Minor/Major/Critical, states with no issues aren't shown) plus their simulated task narrative and their own CHOICE/NNG sub-score. See [Persona-driven reviews](#persona-driven-reviews). |
-| **02 · CHOICE & NNG** | A cross-flow read across all personas: how the whole experience holds together, not just one screen at a time.        |
-| **03 · PRD Gap Analysis** | Every requirement from your PRD, checked off as Implemented / Partial / Not found. Only shown if you gave a PRD URL. Informational. |
+| **01 · Persona** | One tab per persona in the resolved roster (from your PRD's target-users table, your own input, Mekari's internal persona library, a freshly cast synthetic panel, or — as a last resort — 5 generic role personas), plus their own CHOICE/NNG sub-score. Identity only — role/goal/dossier, not tied to this specific run. See [Persona-driven reviews](#persona-driven-reviews). |
+| **02 · Walkthrough & AI UT Simulation** | The same tabs, now showing what happened when each persona used the prototype: their screenshots/findings (tagged Minor/Major/Critical, states with no issues aren't shown) and their simulated task narrative. Switching a tab here also switches Section 01. |
+| **03 · CHOICE & NNG** | A cross-flow read across all personas: how the whole experience holds together, not just one screen at a time.        |
+| **04 · PRD Gap Analysis** | Every requirement from your PRD, checked off as Implemented / Partial / Not found. Only shown if you gave a PRD URL. Informational. |
 
 ## Act on findings
 

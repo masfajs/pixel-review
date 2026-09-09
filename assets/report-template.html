@@ -497,6 +497,9 @@
       .persona-body {
         padding: 13px 15px;
       }
+      .persona-identity {
+        padding: 13px 15px;
+      }
       .persona-task {
         font-size: 11.5px;
         color: var(--mp-text-placeholder);
@@ -985,23 +988,27 @@
         </div>
       </header>
 
-      <!-- ─── Walkthrough & AI UT Simulation, per persona ─── -->
+      <!-- ─── Persona ─── -->
       <hr class="section-divider" />
       <div style="margin-bottom: 32px">
         <div class="section-head">
           <span class="section-num">01</span>
-          <h2 class="section-title">Walkthrough &amp; AI UT Simulation</h2>
+          <h2 class="section-title">Persona</h2>
         </div>
-        <div class="callout info" style="margin-bottom: 14px">{{AI_UT_INSIGHT}}</div>
         <!-- NOTE: {{PERSONA_TABS_HTML}} = a .persona-tabs bar (one .tab-btn per persona) followed by
-             one .tab-pane per persona (first pane + first tab-btn start with class "active"; the rest
-             start without it — switchPersonaTab() toggles which one shows). Inject directly, no extra
-             wrapper. -->
+             one .tab-pane per persona — IDENTITY ONLY (who this persona is), not simulation output.
+             First pane + first tab-btn start with class "active"; the rest start without it —
+             switchPersonaTab() keeps this section's pane AND Section 02's pane in sync for the same
+             persona (both share the same data-persona value, so give every tab-btn/tab-pane pair in
+             BOTH sections the exact same data-persona slug). Inject directly, no extra wrapper. -->
         {{PERSONA_TABS_HTML}}
         <!--
-    Structure to emit — one .tab-btn + one .tab-pane per persona in the resolved roster. This whole
-    block is a comment; do not put a literal "--" followed by ">" anywhere inside it, or the comment
-    ends early and this example markup renders for real. Use bracketed notes like [one per persona]
+    Structure to emit — one .tab-btn + one .tab-pane per persona in the resolved roster. IDENTITY
+    content only: persona-head (avatar/name/role/mini-score) + EITHER .persona-dossier (verbatim,
+    hasDossier:true personas) OR .persona-identity (Goal/Pain/Workaround from the PRD's persona
+    table, or a short description from user input — for personas with no dossier). This whole block
+    is a comment; do not put a literal "--" followed by ">" anywhere inside it, or the comment ends
+    early and this example markup renders for real. Use bracketed notes like [one per persona]
     instead of nested HTML comments here.
 
     <div class="persona-tabs">
@@ -1010,8 +1017,8 @@
       [one button per persona]
     </div>
 
-    <div class="tab-pane active" id="tab-persona-slug-1" data-persona="persona-slug-1">
-      <div class="persona-card" style="margin-bottom: 16px">
+    <div class="tab-pane active" id="tab-persona-persona-slug-1" data-persona="persona-slug-1">
+      <div class="persona-card">
         <div class="persona-head">
           <div class="persona-av" style="background:#EEF0FC;color:#4B61DC">A</div>
           <div>
@@ -1021,8 +1028,93 @@
           <span class="tab-mini-score" id="score-persona-slug-1"></span>
           [leave the span empty — computeScores('persona-slug-1') fills it client-side, do not author a number]
         </div>
+        <div class="persona-identity">
+          <div class="dossier-block">
+            <div class="dossier-label">Goal</div>
+            <div class="persona-find">What this persona is trying to achieve overall (from the PRD's persona table, or from user input)</div>
+          </div>
+          <div class="dossier-block">
+            <div class="dossier-label">Pain</div>
+            <div class="persona-find">Their current frustration this feature should address</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    [A hasDossier:true persona uses .persona-dossier INSTEAD of .persona-identity, rendering
+    pack.render.dossier verbatim — never compressed to name/goal/pain. Example:]
+
+    <div class="tab-pane" id="tab-persona-persona-slug-2" data-persona="persona-slug-2">
+      <div class="persona-card">
+        <div class="persona-head">
+          <div class="persona-av" style="background:#FFF4E5;color:#B76E00">P</div>
+          <div>
+            <div class="persona-name">Name</div>
+            <div class="persona-role">Role · Title</div>
+          </div>
+          <span class="tab-mini-score" id="score-persona-slug-2"></span>
+        </div>
+        <div class="persona-dossier">
+          <div class="dossier-block">
+            <div class="dossier-label">Peran &amp; Pekerjaan</div>
+            <ul class="dossier-list">
+              <li>Role-work point, ≥2 items<span class="dossier-cite">[nps:1234]</span></li>
+              <li>Another role-work point</li>
+            </ul>
+          </div>
+          <div class="dossier-block">
+            <div class="dossier-label">Perilaku</div>
+            <ul class="dossier-list">
+              <li>Behavior point, ≥4 items total across this list</li>
+            </ul>
+          </div>
+          <div class="dossier-block">
+            <div class="dossier-label">Permintaan &amp; Pain Points</div>
+            <ul class="dossier-list">
+              <li>Cited claim, ≥2 items, each with a citation<span class="dossier-cite">[lib:cdp/customer-segmentation/ut-2026-01-30/README.md]</span></li>
+            </ul>
+          </div>
+          <div class="dossier-block">
+            <div class="dossier-label">Day in the Life</div>
+            <p class="dossier-day">120–250 word narrative in Bahasa Indonesia, in character, grounded in the cited evidence above — not invented.</p>
+          </div>
+          <div class="dossier-sources">Sumber: nps:1234, lib:cdp/customer-segmentation/ut-2026-01-30/README.md</div>
+        </div>
+      </div>
+    </div>
+    [... one tab-pane per persona, .persona-identity or .persona-dossier depending on hasDossier ...]
+  -->
+      </div>
+
+      <!-- ─── Walkthrough & AI UT Simulation ─── -->
+      <hr class="section-divider" />
+      <div style="margin-bottom: 32px">
+        <div class="section-head">
+          <span class="section-num">02</span>
+          <h2 class="section-title">Walkthrough &amp; AI UT Simulation</h2>
+        </div>
+        <div class="callout info" style="margin-bottom: 14px">{{AI_UT_INSIGHT}}</div>
+        <!-- NOTE: {{WALKTHROUGH_TABS_HTML}} = the SAME tab bar repeated (identical persona slugs,
+             order, and labels as {{PERSONA_TABS_HTML}} above — switchPersonaTab() keeps both
+             sections' tabs in sync since it matches on data-persona, not on section) followed by one
+             .tab-pane per persona containing their task/quote/completion narrative PLUS their own
+             walkthrough state-cards — this is simulation OUTPUT, not identity. Inject directly, no
+             extra wrapper. -->
+        {{WALKTHROUGH_TABS_HTML}}
+        <!--
+    Structure to emit — same persona list as Section 01, same tab-btn markup (data-persona values
+    must match Section 01's exactly so switchPersonaTab() keeps both sections in sync):
+
+    <div class="persona-tabs">
+      <button class="tab-btn active" data-persona="persona-slug-1" onclick="switchPersonaTab('persona-slug-1')">Persona Name 1</button>
+      <button class="tab-btn" data-persona="persona-slug-2" onclick="switchPersonaTab('persona-slug-2')">Persona Name 2</button>
+      [one button per persona]
+    </div>
+
+    <div class="tab-pane active" id="tab-walk-persona-slug-1" data-persona="persona-slug-1">
+      <div class="persona-card" style="margin-bottom: 16px">
         <div class="persona-body">
-          <div class="persona-task">Task: What they are trying to do</div>
+          <div class="persona-task">Task: What they are trying to do in THIS review</div>
           <div class="persona-find">What they found / experienced</div>
           <div class="persona-quote">"Their quote in bahasa Indonesia"</div>
           <div class="persona-status">
@@ -1071,51 +1163,11 @@
       [... repeat state-card per Minor+ state for this persona ...]
     </div>
 
-    [The tab-pane above used .persona-body — for a PRD-table or user-input persona (no dossier). A
-    persona with hasDossier:true (from the MCP persona library or a freshly cast panel) uses
-    .persona-dossier INSTEAD of .persona-body, rendering pack.render.dossier verbatim — never
-    compressed to name/task/quote. Example:]
-
-    <div class="tab-pane" id="tab-persona-slug-2" data-persona="persona-slug-2">
-      <div class="persona-card" style="margin-bottom: 16px">
-        <div class="persona-head">
-          <div class="persona-av" style="background:#FFF4E5;color:#B76E00">P</div>
-          <div>
-            <div class="persona-name">Name</div>
-            <div class="persona-role">Role · Title</div>
-          </div>
-          <span class="tab-mini-score" id="score-persona-slug-2"></span>
-        </div>
-        <div class="persona-dossier">
-          <div class="dossier-block">
-            <div class="dossier-label">Peran &amp; Pekerjaan</div>
-            <ul class="dossier-list">
-              <li>Role-work point, ≥2 items<span class="dossier-cite">[nps:1234]</span></li>
-              <li>Another role-work point</li>
-            </ul>
-          </div>
-          <div class="dossier-block">
-            <div class="dossier-label">Perilaku</div>
-            <ul class="dossier-list">
-              <li>Behavior point, ≥4 items total across this list</li>
-            </ul>
-          </div>
-          <div class="dossier-block">
-            <div class="dossier-label">Permintaan &amp; Pain Points</div>
-            <ul class="dossier-list">
-              <li>Cited claim, ≥2 items, each with a citation<span class="dossier-cite">[lib:cdp/customer-segmentation/ut-2026-01-30/README.md]</span></li>
-            </ul>
-          </div>
-          <div class="dossier-block">
-            <div class="dossier-label">Day in the Life</div>
-            <p class="dossier-day">120–250 word narrative in Bahasa Indonesia, in character, grounded in the cited evidence above — not invented.</p>
-          </div>
-          <div class="dossier-sources">Sumber: nps:1234, lib:cdp/customer-segmentation/ut-2026-01-30/README.md</div>
-        </div>
-      </div>
-      [same walkthrough state-card structure as tab-persona-slug-1 follows here]
+    <div class="tab-pane" id="tab-walk-persona-slug-2" data-persona="persona-slug-2">
+      [same structure: persona-card > persona-body (task/find/quote/status) + state-cards, for the
+      next persona]
     </div>
-    [... one tab-pane per persona, .persona-body or .persona-dossier depending on hasDossier ...]
+    [... one tab-pane per persona ...]
   -->
       </div>
 
@@ -1123,7 +1175,7 @@
       <hr class="section-divider" />
       <div style="margin-bottom: 32px">
         <div class="section-head">
-          <span class="section-num">02</span>
+          <span class="section-num">03</span>
           <h2 class="section-title">{{CROSSFLOW_TITLE}}</h2>
         </div>
         <p class="section-sub">{{CROSSFLOW_ANALYSIS_HTML}}</p>
@@ -1133,7 +1185,7 @@
       <hr class="section-divider" />
       <div style="margin-bottom: 32px">
         <div class="section-head">
-          <span class="section-num">03</span>
+          <span class="section-num">04</span>
           <h2 class="section-title">PRD Gap Analysis</h2>
         </div>
         <p class="section-sub">
@@ -1252,16 +1304,27 @@
 
       function refreshAllScores() {
         computeScores(); // global Overall/CHOICE/NNG — same function, same math, nothing LLM-authored
-        document.querySelectorAll('.tab-pane[data-persona]').forEach((pane) => computeScores(pane.dataset.persona));
+        // Section 01 (Persona) and Section 02 (Walkthrough & AI UT Simulation) each render one
+        // .tab-pane per persona sharing the same data-persona slug, so dedupe before recomputing —
+        // otherwise the same persona's score gets computed twice for no reason.
+        const seen = new Set();
+        document.querySelectorAll('.tab-pane[data-persona]').forEach((pane) => {
+          const slug = pane.dataset.persona;
+          if (seen.has(slug)) return;
+          seen.add(slug);
+          computeScores(slug);
+        });
       }
 
       refreshAllScores(); // initial render
 
       function switchPersonaTab(slug) {
+        // Two independent tab bars (Section 01 and Section 02) share the same data-persona slugs —
+        // toggle every matching button/pane across both sections, not just the one that was clicked.
         document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
         document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
-        document.querySelector('.tab-btn[data-persona="' + slug + '"]')?.classList.add('active');
-        document.getElementById('tab-' + slug)?.classList.add('active');
+        document.querySelectorAll('.tab-btn[data-persona="' + slug + '"]').forEach((b) => b.classList.add('active'));
+        document.querySelectorAll('.tab-pane[data-persona="' + slug + '"]').forEach((p) => p.classList.add('active'));
       }
 
       function selectDecision(btn, id) {

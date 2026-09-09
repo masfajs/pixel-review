@@ -433,18 +433,28 @@ Use inline reference format: `NNG · H4`
 
 Simulate each persona in the roster resolved in "Collect inputs" step 4, each narrating **their own**
 walkthrough/trace — not one shared walkthrough narrated N ways. Base each persona's narrative strictly
-on their own `result.json` (or their share of the deduped multi-persona run). Each persona has:
+on their own `result.json` (or their share of the deduped multi-persona run). This framework produces
+two distinct kinds of content, which land in two different report sections (see "Generate HTML report"
+below) — don't blend them:
+
+**Identity** (who this persona is — goes in Section 01 "Persona", independent of this run):
 
 - If `hasDossier: true` (Collect inputs step 4, sources c/e): their **full User Synthetic dossier**
   verbatim — role & work, behavior patterns, cited requests/pain points, day-in-the-life, citations.
-  Do not compress this into the fields below; render it in the report exactly as `pack.render.dossier`
+  Do not compress this into a shorter summary; render it in the report exactly as `pack.render.dossier`
   produced it.
-- Otherwise (sources a/b, or the fallback list): Background, role, goals; primary task they'd attempt,
-  informed by their goal and — if prior UT/concept-test research on this feature was found (Collect
-  inputs step 4d) — specifically re-probing any known friction points rather than only a generic happy
-  path; a simulated quote (first-person, realistic)
-- Both cases: findings from their perspective, drawn from their own flow.json run, and task completion:
-  **Berhasil** / **Berhasil dengan kesulitan** / **Gagal**
+- Otherwise (sources a/b, or the fallback list): background, role, and goal (from the PRD's persona
+  table, or from user input).
+
+**Simulation output** (what happened when this persona used the prototype — goes in Section 02
+"Walkthrough & AI UT Simulation", specific to this run):
+
+- Primary task they'd attempt, informed by their goal and — if prior UT/concept-test research on this
+  feature was found (Collect inputs step 4d) — specifically re-probing any known friction points
+  rather than only a generic happy path
+- Findings from their perspective, drawn from their own flow.json run
+- A simulated quote (first-person, realistic)
+- Task completion: **Berhasil** / **Berhasil dengan kesulitan** / **Gagal**
 
 If the roster fell all the way through to the fallback (Collect inputs step 4f — no PRD table, no user
 input, no MCP available, or MCP declined), use this literal generic starting set instead (adjust
@@ -527,10 +537,11 @@ node /tmp/gen-pixel-report.mjs
 | `{{REVIEW_DATE}}`             | ISO date e.g. `2026-08-12`                                                                                                                                                        |
 | `{{META_STATS}}`              | e.g. `3 rute · 7 states · 19 US dikaji`                                                                                                                                           |
 | `{{PRD_GAP_ROWS_HTML}}`       | Only the `<tr>` rows for each US; if PRD skipped, inject one row: `<tr><td colspan="4" style="text-align:center;color:var(--mp-text-placeholder)">PRD tidak disertakan</td></tr>` |
-| `{{CROSSFLOW_TITLE}}`         | Section 02 heading e.g. `CHOICE & NNG — Keseluruhan Halaman`                                                                                                                      |
+| `{{CROSSFLOW_TITLE}}`         | Section 03 heading e.g. `CHOICE & NNG — Keseluruhan Halaman`                                                                                                                      |
 | `{{CROSSFLOW_ANALYSIS_HTML}}` | Cross-flow prose paragraph                                                                                                                                                        |
 | `{{AI_UT_INSIGHT}}`           | 1–2 sentence aggregate insight across ALL personas — sits above the persona tab bar, not inside a tab |
-| `{{PERSONA_TABS_HTML}}`       | One tab button + one tab pane per persona in the resolved roster. Each pane = that persona's header (name/role, mini CHOICE/NNG score line) + body + their own walkthrough state cards (Minor+ findings only, same rule as before). Body is either `.persona-dossier` (full User Synthetic dossier, verbatim, for `hasDossier: true` personas) or `.persona-body` (task/quote/completion status, for PRD-table/user-input personas) — see HTML comments in template for both markups |
+| `{{PERSONA_TABS_HTML}}`       | Section 01 "Persona" — one tab button + one tab pane per persona in the resolved roster, IDENTITY only. Each pane = that persona's header (name/role, mini CHOICE/NNG score line) + either `.persona-dossier` (full User Synthetic dossier, verbatim, for `hasDossier: true` personas) or `.persona-identity` (Goal/Pain, for PRD-table/user-input personas) — see HTML comments in template |
+| `{{WALKTHROUGH_TABS_HTML}}`   | Section 02 "Walkthrough & AI UT Simulation" — the SAME tab bar repeated with identical `data-persona` slugs/order (so `switchPersonaTab()` keeps both sections in sync) + one tab pane per persona with their task/quote/completion narrative (`.persona-body`) plus their own walkthrough state cards (Minor+ findings only, same rule as before) — see HTML comments in template |
 | `{{FD_JSON}}`                 | JS object: `{ fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical\|Major\|Minor', p:['persona-slug', ...] } }` — `p` lists every persona-slug who encountered this finding's state (single entry normally, multiple when deduped across personas). The report's JS computes CHOICE/NNG/Overall/verdict (and, per persona, a filtered sub-score) from this, see "Scoring" above |
 | `{{PRD_SCORE}}`               | Score integer or `N/A`                                                                                                                                                            |
 | `{{EXPORT_FILENAME}}`         | `<branch-slug>-<YYYYMMDD>[-N]-pixel-review.md`                                                                                                                                    |
