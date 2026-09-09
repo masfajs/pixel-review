@@ -458,12 +458,6 @@
       }
 
       /* Personas */
-      .persona-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
-        gap: 10px;
-        margin-top: 8px;
-      }
       .persona-card {
         background: var(--mp-background-stage);
         border: 1px solid var(--mp-border-default);
@@ -543,6 +537,46 @@
       .status-warn {
         background: var(--mp-background-warning-orange);
         color: var(--mp-text-warning-orange);
+      }
+
+      /* Persona tabs — per-persona Walkthrough + AI UT Simulation, one pane per resolved persona */
+      .persona-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--mp-border-default);
+        padding-bottom: 10px;
+      }
+      .tab-btn {
+        font-family: var(--mp-fonts-body);
+        font-size: 13px;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: var(--mp-radii-full);
+        border: 1px solid var(--mp-border-default);
+        background: var(--mp-background-stage);
+        color: var(--mp-text-secondary);
+        cursor: pointer;
+      }
+      .tab-btn.active {
+        background: var(--mp-background-brand-bold);
+        border-color: var(--mp-background-brand-bold);
+        color: var(--mp-text-inverse);
+      }
+      .tab-pane {
+        display: none;
+      }
+      .tab-pane.active {
+        display: block;
+      }
+      .tab-mini-score {
+        margin-left: auto;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--mp-text-default);
+        white-space: nowrap;
       }
 
       .callout {
@@ -901,54 +935,96 @@
         </div>
       </header>
 
-      <!-- ─── Walkthrough ─── -->
+      <!-- ─── Walkthrough & AI UT Simulation, per persona ─── -->
       <hr class="section-divider" />
       <div style="margin-bottom: 32px">
         <div class="section-head">
           <span class="section-num">01</span>
-          <h2 class="section-title">Walkthrough</h2>
+          <h2 class="section-title">Walkthrough &amp; AI UT Simulation</h2>
         </div>
-        {{WALKTHROUGH_STATES_HTML}}
+        <div class="callout info" style="margin-bottom: 14px">{{AI_UT_INSIGHT}}</div>
+        <!-- NOTE: {{PERSONA_TABS_HTML}} = a .persona-tabs bar (one .tab-btn per persona) followed by
+             one .tab-pane per persona (first pane + first tab-btn start with class "active"; the rest
+             start without it — switchPersonaTab() toggles which one shows). Inject directly, no extra
+             wrapper. -->
+        {{PERSONA_TABS_HTML}}
         <!--
-    Emit one card per state that has a Minor+ finding only. Passed states get no card here — skip
-    them entirely. The number of cards is not fixed and varies per review.
+    Structure to emit — one .tab-btn + one .tab-pane per persona in the resolved roster. This whole
+    block is a comment; do not put a literal "--" followed by ">" anywhere inside it, or the comment
+    ends early and this example markup renders for real. Use bracketed notes like [one per persona]
+    instead of nested HTML comments here.
 
-    Each state card uses this structure:
+    <div class="persona-tabs">
+      <button class="tab-btn active" data-persona="persona-slug-1" onclick="switchPersonaTab('persona-slug-1')">Persona Name 1</button>
+      <button class="tab-btn" data-persona="persona-slug-2" onclick="switchPersonaTab('persona-slug-2')">Persona Name 2</button>
+      [one button per persona]
+    </div>
 
-    <div class="state-card">
-      <div class="state-head">
-        <span class="state-idx">STATE / 01</span>
-        <h3 class="state-name">Initial</h3>
-      </div>
-      <div class="screenshot-row">
-        <img class="shot-thumb" src="data:image/png;base64,BASE64_HERE" alt="..." onclick="expandShot(this)" title="Klik untuk perbesar">
-        <div class="shot-note">Brief description of the state — what US it covers, key context. <strong>Apa yang terlihat:</strong> Description of what's visible in the screenshot.</div>
-      </div>
-      <div class="findings-grid">
-        <div class="findings-col">
-          (first col hidden by CSS — kept for structure)
+    <div class="tab-pane active" id="tab-persona-slug-1" data-persona="persona-slug-1">
+      <div class="persona-card" style="margin-bottom: 16px">
+        <div class="persona-head">
+          <div class="persona-av" style="background:#EEF0FC;color:#4B61DC">A</div>
+          <div>
+            <div class="persona-name">Name</div>
+            <div class="persona-role">Role · Title</div>
+          </div>
+          <span class="tab-mini-score" id="score-persona-slug-1"></span>
+          [leave the span empty — computeScores('persona-slug-1') fills it client-side, do not author a number]
         </div>
-        <div class="findings-col">
-          FINDING ITEMS GO HERE — use this structure per finding:
+        <div class="persona-body">
+          <div class="persona-task">Task: What they are trying to do</div>
+          <div class="persona-find">What they found / experienced</div>
+          <div class="persona-quote">"Their quote in bahasa Indonesia"</div>
+          <div class="persona-status">
+            <span class="status-badge status-ok">&#10003; Berhasil</span>
+            OR
+            <span class="status-badge status-warn">&#9888; Kesulitan</span>
+          </div>
+        </div>
+      </div>
 
-          <div class="finding-item" id="fN">
-            <div class="finding-bar SEVERITY"></div>
-            <div class="finding-content">
-              <div class="finding-tag SEVERITY">Major|Minor|Passed</div>
-              <div class="finding-fw">FRAMEWORK · Principle</div>
-              <div class="finding-text">Short title of the finding</div>
-              <div class="finding-desc">Detailed explanation of the issue and its impact.</div>
-              <div class="decision-sel">
-                <button class="sel-opt" data-action="ai" data-prompt="PROMPT_TEXT" onclick="selectDecision(this,'fN')">Fix by AI</button>
-                <button class="sel-opt" data-action="ignore" onclick="selectDecision(this,'fN')">Abaikan</button>
-                <button class="sel-opt" data-action="discuss" onclick="selectDecision(this,'fN')">Diskusi</button>
+      [This persona's own walkthrough — one state-card per state with a Minor+ finding from THIS
+      persona's own result.json (or their share of a deduped multi-persona run). Passed states get no
+      card. Same state-card structure as before:]
+      <div class="state-card">
+        <div class="state-head">
+          <span class="state-idx">STATE / 01</span>
+          <h3 class="state-name">Initial</h3>
+        </div>
+        <div class="screenshot-row">
+          <img class="shot-thumb" src="data:image/png;base64,BASE64_HERE" alt="..." onclick="expandShot(this)" title="Klik untuk perbesar">
+          <div class="shot-note">Brief description of the state — what US it covers, key context. <strong>Apa yang terlihat:</strong> Description of what's visible in the screenshot.</div>
+        </div>
+        <div class="findings-grid">
+          <div class="findings-col">
+            (first col hidden by CSS — kept for structure)
+          </div>
+          <div class="findings-col">
+            <div class="finding-item" id="fN">
+              <div class="finding-bar SEVERITY"></div>
+              <div class="finding-content">
+                <div class="finding-tag SEVERITY">Major|Minor|Passed</div>
+                <div class="finding-fw">FRAMEWORK · Principle</div>
+                <div class="finding-text">Short title of the finding</div>
+                <div class="finding-desc">Detailed explanation of the issue and its impact.</div>
+                <div class="decision-sel">
+                  <button class="sel-opt" data-action="ai" data-prompt="PROMPT_TEXT" onclick="selectDecision(this,'fN')">Fix by AI</button>
+                  <button class="sel-opt" data-action="ignore" onclick="selectDecision(this,'fN')">Abaikan</button>
+                  <button class="sel-opt" data-action="discuss" onclick="selectDecision(this,'fN')">Diskusi</button>
+                </div>
+                <div class="disc-note-area"><textarea placeholder="Tambahkan catatan..."></textarea></div>
               </div>
-              <div class="disc-note-area"><textarea placeholder="Tambahkan catatan..."></textarea></div>
             </div>
           </div>
         </div>
       </div>
+      [... repeat state-card per Minor+ state for this persona ...]
     </div>
+
+    <div class="tab-pane" id="tab-persona-slug-2" data-persona="persona-slug-2">
+      [same structure as tab-persona-slug-1, for the next persona]
+    </div>
+    [... one tab-pane per persona ...]
   -->
       </div>
 
@@ -962,49 +1038,11 @@
         <p class="section-sub">{{CROSSFLOW_ANALYSIS_HTML}}</p>
       </div>
 
-      <!-- ─── AI UT Simulation ─── -->
-      <hr class="section-divider" />
-      <div style="margin-bottom: 32px">
-        <div class="section-head">
-          <span class="section-num">03</span>
-          <h2 class="section-title">AI UT Simulation &mdash; 5 Personas</h2>
-        </div>
-        <!-- NOTE: {{AI_UT_PERSONAS_HTML}} = only the <div class="persona-card">…</div> elements.
-             Do NOT wrap them in another .persona-grid — this div IS the grid. -->
-        <div class="persona-grid">
-          {{AI_UT_PERSONAS_HTML}}
-          <!--
-      Each persona card (no .persona-grid wrapper — inject cards directly):
-
-      <div class="persona-card">
-        <div class="persona-head">
-          <div class="persona-av" style="background:#EEF0FC;color:#4B61DC">A</div>
-          <div>
-            <div class="persona-name">Name</div>
-            <div class="persona-role">Role · Title</div>
-          </div>
-        </div>
-        <div class="persona-body">
-          <div class="persona-task">Task: What they are trying to do</div>
-          <div class="persona-find">What they found / experienced</div>
-          <div class="persona-quote">"Their quote in bahasa Indonesia"</div>
-          <div class="persona-status">
-            <span class="status-badge status-ok">&#10003; Berhasil</span>
-            OR
-            <span class="status-badge status-warn">&#9888; Kesulitan</span>
-          </div>
-        </div>
-      </div>
-    -->
-        </div>
-        <div class="callout info" style="margin-top: 14px">{{AI_UT_INSIGHT}}</div>
-      </div>
-
       <!-- ─── PRD Gap Analysis ─── -->
       <hr class="section-divider" />
       <div style="margin-bottom: 32px">
         <div class="section-head">
-          <span class="section-num">04</span>
+          <span class="section-num">03</span>
           <h2 class="section-title">PRD Gap Analysis</h2>
         </div>
         <p class="section-sub">
@@ -1079,11 +1117,16 @@
 
       // Pure function of (severity, principle/heuristic) pairs from active (non-dismissed) findings —
       // no separately-authored baseline. Runs identically on page load and after every decision change.
-      function computeScores() {
+      // personaFilter (optional): when given, only sums findings whose `p` array includes that persona
+      // slug, and writes the result into that persona's own tab-mini-score element instead of the
+      // global stat strip — used to give each persona tab its own CHOICE/NNG sub-score alongside the
+      // one combined Overall for the whole review.
+      function computeScores(personaFilter) {
         const principle = Object.fromEntries(CHOICE_PRINCIPLES.map((p) => [p, 100]));
         const heuristic = Object.fromEntries(NNG_HEURISTICS.map((h) => [h, 10]));
 
         for (const [id, f] of Object.entries(fd)) {
+          if (personaFilter && !(f.p || []).includes(personaFilter)) continue;
           const active = document.querySelector('#' + id + ' .sel-opt.active');
           if (active?.dataset.action === 'ignore') continue;
           const [fw, key] = f.fw.split('·').map((s) => s.trim());
@@ -1101,22 +1144,41 @@
         const overall = Math.round(choice * 0.6 + nng * 0.4);
         const { band, badge, text } = bandFor(overall);
 
-        document.getElementById('stat-overall').textContent = overall;
-        document.getElementById('stat-choice').textContent = choice;
-        document.getElementById('stat-nng').textContent = nng;
-        document.getElementById('verdict-badge').textContent = badge;
-        document.querySelectorAll('.score-legend span[data-band]').forEach((el) => el.removeAttribute('data-current'));
-        document.querySelector('.score-legend span[data-band="' + band + '"]')?.setAttribute('data-current', '');
+        if (!personaFilter) {
+          document.getElementById('stat-overall').textContent = overall;
+          document.getElementById('stat-choice').textContent = choice;
+          document.getElementById('stat-nng').textContent = nng;
+          document.getElementById('verdict-badge').textContent = badge;
+          document.querySelectorAll('.score-legend span[data-band]').forEach((el) => el.removeAttribute('data-current'));
+          document.querySelector('.score-legend span[data-band="' + band + '"]')?.setAttribute('data-current', '');
+        } else {
+          const el = document.getElementById('score-' + personaFilter);
+          if (el) el.textContent = overall + '/100 · ' + text;
+        }
 
         return { overall, choice, nng, verdictText: text };
       }
 
-      computeScores(); // initial render — same function, same math, nothing LLM-authored
+      function refreshAllScores() {
+        computeScores(); // global Overall/CHOICE/NNG — same function, same math, nothing LLM-authored
+        document.querySelectorAll('.tab-pane[data-persona]').forEach((pane) => computeScores(pane.dataset.persona));
+      }
+
+      refreshAllScores(); // initial render
+
+      function switchPersonaTab(slug) {
+        document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
+        document.querySelector('.tab-btn[data-persona="' + slug + '"]')?.classList.add('active');
+        document.getElementById('tab-' + slug)?.classList.add('active');
+      }
 
       function selectDecision(btn, id) {
         btn.closest('.decision-sel').querySelectorAll('.sel-opt').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        computeScores();
+        // A shared/deduped finding can belong to more than one persona, so refresh every tab's
+        // mini-score together with the global Overall — not just the currently visible tab.
+        refreshAllScores();
       }
 
       function expandShot(img) {

@@ -4,7 +4,7 @@ Playwright-driven design review workflow for [Claude Code](https://claude.com/cl
 at a running prototype (and ideally a PRD or a short scenario), and it explores the app headlessly,
 scores it against a **CHOICE (60%) + NNG (40%)** weighted UX audit, and produces a single
 self-contained HTML report with embedded screenshots, a PRD coverage gap table, and an AI-simulated
-usability test with 5 personas.
+usability test with a persona roster sourced from your PRD, prior research, or a synthetic panel.
 
 No engineering background required — install and run this yourself, start to finish.
 
@@ -53,10 +53,9 @@ and after a few minutes writes an HTML report and opens it in your browser.
 | Section              | What it tells you                                                                                                     |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | **Score strip**       | Overall / CHOICE / NNG, each 0–100. See [Design principles & scoring](#design-principles--scoring).                   |
-| **01 · Walkthrough**  | One card per screen state that had an issue — screenshot + finding, tagged Minor/Major/Critical. States with no issues aren't shown. |
-| **02 · CHOICE & NNG** | A cross-flow read: how the whole experience holds together, not just one screen at a time.                            |
-| **03 · AI UT Simulation** | 5 simulated personas (sales rep, CS agent, supervisor, marketing manager, new employee) each try to use the prototype and report what happened. Informational — doesn't affect the score. |
-| **04 · PRD Gap Analysis** | Every requirement from your PRD, checked off as Implemented / Partial / Not found. Only shown if you gave a PRD URL. Informational. |
+| **01 · Walkthrough & AI UT Simulation** | One tab per persona in the resolved roster (from your PRD's target-users table, your own input, Mekari's internal persona library, a freshly cast synthetic panel, or — as a last resort — 5 generic role personas). Each tab shows that persona's own screenshots/findings (tagged Minor/Major/Critical, states with no issues aren't shown) plus their simulated task narrative and their own CHOICE/NNG sub-score. See [Persona-driven reviews](#persona-driven-reviews). |
+| **02 · CHOICE & NNG** | A cross-flow read across all personas: how the whole experience holds together, not just one screen at a time.        |
+| **03 · PRD Gap Analysis** | Every requirement from your PRD, checked off as Implemented / Partial / Not found. Only shown if you gave a PRD URL. Informational. |
 
 ## Act on findings
 
@@ -102,7 +101,8 @@ Overall = round(CHOICE × 0.6 + NNG × 0.4)
 ```
 
 PRD Coverage and the AI UT Simulation are still run and shown in the report but are informational only
-and never factor into Overall.
+and never factor into Overall — including each persona's own tab-level CHOICE/NNG sub-score, which is
+informational too.
 
 | Score  | Status          | Meaning                                     |
 | ------ | --------------- | -------------------------------------------- |
@@ -123,23 +123,40 @@ at your copy) — NNG, the scoring formula, and severity scale are framework-agn
 - Not published to npm yet — install directly from this repo (git dependency or `npm pack` + local
   install) until a release is cut.
 
-## TODO / Roadmap
+## Persona-driven reviews
 
-- **Persona-driven `flow.json`** — add persona as a 4th input alongside PRD URL / free-form scenario /
-  live prototype URL in "Collect inputs". A supplied persona (role, goal, familiarity with the product)
-  would drive what the Playwright driver actually visits and clicks, the same way instruction mode
-  today turns a short scenario like `"create ticket flow"` into hand-authored `flow.json` entries —
-  except seeded by the persona's context instead of a bare feature name.
-  - Would **replace** (not add to) the 5 fixed generic personas currently hardcoded into Framework 4
-    (AI UT Simulation) — the same user-supplied persona(s) that shaped the exploration would also drive
-    the simulation narrative, so the two stay grounded in the same context instead of Framework 4
-    guessing generically over whatever got captured.
-  - Persona generation itself is out of scope here — expected to be built by a future contributor as
-    its own piece; this package would just need the input slot and the flow-generation logic to consume
-    it.
-  - Status: exploration only, not designed or scheduled yet.
+Instead of narrating one shared walkthrough with 5 fixed generic personas, `/pixel-review` resolves a
+**persona roster** as a 4th input (alongside PRD URL / free-form scenario / prototype URL) and gives
+each persona in that roster their **own** Playwright exploration and their own tab in the report.
 
-  **Dimensions to combine when generating a B2B SaaS persona** (starting reference, not exhaustive —
+**Roster resolution, in priority order** (stops at the first source that supplies a roster, but always
+checks whether the roster needs supplementing to reach the target participant count):
+
+1. **Your PRD's own persona table** — if the PRD has a target-users/persona section, its rows (often
+   Primary/Secondary) become the default roster.
+2. **Your own explicit input** — name personas directly and they override or extend the PRD's.
+3. **Mekari's curated persona research library** _(optional — Mekari-internal MCP)_ — a feature-level
+   or product-wide persona set, reused for consistency across repeated reviews of the same module
+   instead of re-inventing one each run.
+4. **Prior UT/concept-test research on the same feature** _(optional, enrichment only)_ — grounds
+   persona behavior and flags known friction points to specifically re-test, without changing who's on
+   the roster.
+5. **A freshly cast synthetic panel** _(optional — Mekari-internal MCP)_ — used only to fill a roster
+   that's short of the target participant count; requires you to approve a study brief first.
+6. **The original 5 generic personas** (sales rep, CS agent, supervisor, marketing manager, new
+   employee) — the fallback of last resort, only when none of the above produced anything.
+
+**MCP involvement is entirely optional** — steps 3, 4, and 5 only run if you have Mekari's internal
+research MCP connected; the whole feature works with zero MCP access, using just your PRD and your own
+input.
+
+**Multiple personas means multiple Playwright passes** — each persona gets its own `flow.json` and its
+own exploration run, since a new employee and a power user genuinely take different paths. This scales
+wall-clock time with roster size, but not meaningfully cost: Playwright execution and HTML generation
+are both effectively free token-wise, and screenshots are deduped when two personas land on the exact
+same screen/state.
+
+**Dimensions to combine when generating a B2B SaaS persona** (starting reference, not exhaustive —
   the two examples raised so far, New Subscriber and Power User, are really points on the *tenure* axis
   below; a generator should mix axes, not just vary tenure):
 
@@ -155,7 +172,8 @@ at your copy) — NNG, the scoring formula, and severity scale are framework-agn
   | **Engagement pattern** | Daily power-use (in the product for hours) → Occasional/casual (logs in monthly, forgets the UI between visits — ties to NNG H6 Recognition not recall) |
   | **Language / accessibility** | Non-native speaker (copy clarity matters more — CHOICE Clear, NNG H2) → Screen reader / keyboard-only user (currently uncovered by any existing persona, worth its own archetype) |
 
-  **Archetypes not yet covered** by the current 5 fixed personas, worth having the generator produce:
+  **Archetypes not covered** by the 5 generic fallback personas, worth asking for by name (in your own
+  input, step 2 above) or from a synthetic cast (step 5):
 
   - **Switcher** — migrated from a competitor's tool, has strong existing mental models that may
     conflict with this product's patterns; compares constantly.

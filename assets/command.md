@@ -79,6 +79,55 @@ fresh session with no prior context, or a vibe-coding session that touched sever
 
 If the user skips PRD URL, set `prd_skipped = true`.
 
+4. **Resolve the persona roster** — determines who drives exploration below AND who Framework 4
+   narrates. Resolve in order, stop at the first source that supplies a roster, but always still check
+   for supplementing (e) if the roster is short of the target participant count:
+
+   a. **PRD's own persona table** — if PRD mode is active and the fetched PRD has a persona/target-users
+      section (heading wording varies — "Target Users", "Persona", "Target Audience", etc. — match
+      loosely on a table naming a Persona/Role + Goal/Pain, don't require exact wording). Rows are
+      often labeled Primary/Secondary: Primary is mandatory and runs first; Secondary is included by
+      default but is the first candidate to trim under time/participant constraints.
+   b. **User explicit override** — anything the user names in `$ARGUMENTS` or conversation overrides or
+      adds to (a).
+   c. **MCP curated persona library** (only if `mcp__claude_ai_User_syntethics__*` tools are available
+      in this session) — before casting anything new, check for an existing match:
+      `search_research(domain="personas", query=<feature/module name>)` or
+      `list_research_docs(domain="personas")`, specifically:
+      - `personas/qontak-module-personas/desk-2026-07-29/findings.md` (feature-level archetypes)
+      - `personas/qontak-user-personas/desk-2026-07-28/findings.md` (product-wide tiered set)
+      If the module under review already has an archetype here, `get_research_doc` it and use directly
+      — reuse for consistency across repeated reviews of the same module, don't recast.
+   d. **Prior UT/concept-test research on the SAME feature (enrichment only, never a roster source)** —
+      if the MCP is available, `search_research(domain=<matching PRD domain>, method="ut"|"concept")`.
+      If found, `get_research_doc` it and use it to ground persona behavior/wording and which states to
+      specifically re-probe (known friction points) — applies to whichever roster (a)/(b)/(c)/(e)
+      supplied, never adds/removes roster members on its own.
+   e. **Cast new via MCP `synthetic_get_evidence`** — only when (a)-(c) produced nothing, or the roster
+      is short of the target participant count and needs ADDITIONAL distinct personas (never replacing
+      a/b/c). Mandatory: call `synthetic_start_study` first — it returns a protocol requiring an
+      explicit STUDY BRIEF approval before `synthetic_get_evidence` can run; this is a hard tool-side
+      gate, never skip or paraphrase around it. If the roster's shortfall is already known at the
+      "Confirm before proceeding" step below, fold the STUDY BRIEF preview into that same confirmation
+      instead of stopping twice; if the shortfall only becomes apparent later, let this stand as a
+      second, separate stop. Ground the cast with `list_modules` once, then `get_module_records` on
+      `nps` / `feature-requests` / `won-deals` / `loss-deals` / `pms` for real role/industry/tenure/
+      pain/adoption numbers. Use `synthetic_read_source` before grounding claims on any `lib:`-cited
+      source in the evidence pack (previews only by default).
+   f. **Fallback — the 5 generic personas** (see Framework 4) — only when (a)-(e) all produced nothing
+      (no PRD table, no user input, MCP unavailable or declined).
+
+   If no MCP tools are available at all in this session, silently skip (c)/(d)/(e) — don't nag the user
+   about a tool they don't have.
+
+   **Target participant count** (relevant only if (e) may trigger): look for an explicit count in the
+   fetched PRD/research-plan text (e.g. "test with 5 users"). If absent, propose **3** as part of the
+   mode-confirmation step below — adjustable by the user before proceeding.
+
+   **Persona slugs**: every resolved persona gets a slug for file paths — lowercase, non-alphanumeric
+   runs collapsed to a single hyphen, trimmed (e.g. "Sales/CS Team Lead" → `sales-cs-team-lead`). Use
+   this slug consistently across discovery, the real run, and FD_JSON persona tags later.
+
 **Determine review mode:**
 
 | Condition                                           | Mode                  |
@@ -91,7 +140,13 @@ BFS fallback mode crawls the entire app's top-level navigation and produces a br
 only use it when the user has given no scope at all. Prefer instruction mode whenever any flow or
 feature intent can be read from the request; don't default to BFS just because a PRD wasn't provided.
 
-Confirm before proceeding, stating which mode was selected.
+Confirm before proceeding, stating which mode was selected AND the resolved persona roster, e.g.:
+
+> Review scope: create-segment flow. Personas: Sales/CS Team Lead (Primary, from PRD), Marketing/
+> Campaign Manager (Secondary, from PRD). Proceeding with 2 personas — say so now to add/remove any.
+
+If step 4e is already known to be needed at this point (roster short of the target participant count),
+append the STUDY BRIEF preview to this same message instead of stopping twice later.
 
 ---
 
@@ -147,9 +202,21 @@ mkdir -p reports/.tmp-review/
 From the PRD requirements, produce a JSON array that maps every user story to a specific route +
 state + interaction trigger.
 
+If the persona roster has more than one persona, branching per persona here is optional — PRD mode's
+requirement-to-state mapping already gives broad coverage. Only author persona-specific entries when
+the PRD itself implies role-specific entry points (e.g. Primary and Secondary personas reach the same
+feature through different menus).
+
 ### Instruction mode
 
-From the user's flow/feature instruction (e.g. `"create ticket flow"`), work out what to test:
+From the user's flow/feature instruction (e.g. `"create ticket flow"`), work out what to test. If the
+persona roster has one or more personas, **repeat steps 1–4 once per persona** — each persona's goal
+and familiarity level shapes both the discovery pass and which triggers get authored (e.g. a "new
+employee" persona may open a help tooltip or misclick before finding the right control; a power-user
+persona jumps straight to the fastest path). **Enforce divergence**: if two personas would otherwise
+produce an identical `flow.json`, add at least one persona-specific state/step for one of them rather
+than letting the files end up byte-identical — the point of running multiple personas is that they
+genuinely differ.
 
 1. Identify the most likely starting route from the given prototype URL (e.g. `/tickets/all-tickets`
    for a "create ticket flow").
@@ -170,8 +237,10 @@ From the user's flow/feature instruction (e.g. `"create ticket flow"`), work out
 5. Discard the discovery-pass `result.json` before running the real flow-config pass in **Run
    Playwright** below — it was only for reconnaissance.
 
-Both modes write the completed JSON to `reports/.tmp-review/flow.json` using the same format, trigger
-table, and mapping rules below.
+Both modes write the completed JSON using the same format, trigger table, and mapping rules below —
+to `reports/.tmp-review/flow.json` when the roster has 0 or 1 persona, or to
+`reports/.tmp-review/<persona-slug>/flow.json` (one file per persona, using the slug from "Collect
+inputs" step 4) when the roster has more than 1.
 
 **Format:**
 
@@ -231,16 +300,25 @@ table, and mapping rules below.
 - Every US from the PRD (or flow tag, in instruction mode) must appear in at least one entry's `us`
   array.
 
-Write the completed JSON to `reports/.tmp-review/flow.json`.
+Write the completed JSON per the persona-path rule above (flat `reports/.tmp-review/flow.json` for a
+0-or-1-persona roster, `reports/.tmp-review/<persona-slug>/flow.json` per persona otherwise).
 
 ---
 
 ## Run Playwright
 
-**PRD mode or instruction mode** (flow config exists), run in flow config mode:
+**PRD mode or instruction mode, roster of 0 or 1 persona** (flow config exists), run in flow config
+mode:
 
 ```bash
 node node_modules/pixel-review/src/driver.js --url <prototype-url> --flow-config reports/.tmp-review/flow.json --out-dir reports/.tmp-review/
+```
+
+**PRD mode or instruction mode, roster of more than 1 persona** — run once per persona, each into its
+own subdirectory so screenshots/results never collide:
+
+```bash
+node node_modules/pixel-review/src/driver.js --url <prototype-url> --flow-config reports/.tmp-review/<persona-slug>/flow.json --out-dir reports/.tmp-review/<persona-slug>/
 ```
 
 **BFS fallback mode only** (no PRD, no flow instruction given), run in BFS discovery mode:
@@ -250,11 +328,18 @@ node node_modules/pixel-review/src/driver.js --url <prototype-url> --out-dir rep
 ```
 
 The script uses Chrome with your existing session (copies profile to temp dir if Chrome is running).
-After completion, read the output:
+After completion, read the output — `reports/.tmp-review/result.json` for a single run, or each
+persona's `reports/.tmp-review/<persona-slug>/result.json` for a multi-persona roster:
 
 ```bash
 cat reports/.tmp-review/result.json
 ```
+
+**Dedupe before scoring, when the roster has more than 1 persona**: compare every persona's
+`result.json` entries by exact `route + "::" + state` string match. If two or more personas produced
+the same key, read and score that screenshot only **once** — never re-spend vision tokens re-reading an
+identical image — and record which personas visited it (this becomes the `p` array on that finding's
+FD_JSON entry, see "Apply review frameworks" below).
 
 ---
 
@@ -337,16 +422,21 @@ Use inline reference format: `NNG · H4`
 
 ### Framework 4 — AI UT Simulation (informational — never factors into Overall)
 
-Simulate 5 personas interacting with the prototype based on the Playwright result. Each persona has:
+Simulate each persona in the roster resolved in "Collect inputs" step 4, each narrating **their own**
+walkthrough/trace — not one shared walkthrough narrated N ways. Base each persona's narrative strictly
+on their own `result.json` (or their share of the deduped multi-persona run). Each persona has:
 
-- Background, role, goals
-- Primary task they'd attempt
-- Findings from their perspective
+- Background, role, goals (from whichever roster source supplied them)
+- Primary task they'd attempt, informed by their goal and — if prior UT/concept-test research on this
+  feature was found (Collect inputs step 4d) — specifically re-probing any known friction points
+  rather than only a generic happy path
+- Findings from their perspective, drawn from their own flow.json run
 - A simulated quote (first-person, realistic)
 - Task completion: **Berhasil** / **Berhasil dengan kesulitan** / **Gagal**
 
-Personas (adjust to fit the feature being reviewed — these are a generic starting set, swap in
-personas that actually match the product):
+If the roster fell all the way through to the fallback (Collect inputs step 4f — no PRD table, no user
+input, no MCP available, or MCP declined), use this literal generic starting set instead (adjust
+wording to fit the feature being reviewed):
 
 1. **Sales Rep** — B2B account executive, high call volume, driven by daily targets
 2. **Customer Service Agent** — handles incoming tickets under SLA pressure, context-switching often
@@ -354,7 +444,8 @@ personas that actually match the product):
 4. **Marketing Manager** — manages broadcast campaigns and contact lists, not highly technical
 5. **New employee** — first week, no formal training, navigating the product cold
 
-Score: (tasks completed or completed with difficulty) / 5 × 100.
+Score: (tasks completed or completed with difficulty) / N × 100, where N = number of personas actually
+simulated (not always 5).
 
 ---
 
@@ -424,12 +515,11 @@ node /tmp/gen-pixel-report.mjs
 | `{{REVIEW_DATE}}`             | ISO date e.g. `2026-08-12`                                                                                                                                                        |
 | `{{META_STATS}}`              | e.g. `3 rute · 7 states · 19 US dikaji`                                                                                                                                           |
 | `{{PRD_GAP_ROWS_HTML}}`       | Only the `<tr>` rows for each US; if PRD skipped, inject one row: `<tr><td colspan="4" style="text-align:center;color:var(--mp-text-placeholder)">PRD tidak disertakan</td></tr>` |
-| `{{WALKTHROUGH_STATES_HTML}}` | One card per state with a Minor+ finding only — skip Passed states, no card for them. Count is not fixed. See HTML comments in template for card markup structure.                |
 | `{{CROSSFLOW_TITLE}}`         | Section 02 heading e.g. `CHOICE & NNG — Keseluruhan Halaman`                                                                                                                      |
 | `{{CROSSFLOW_ANALYSIS_HTML}}` | Cross-flow prose paragraph                                                                                                                                                        |
-| `{{AI_UT_PERSONAS_HTML}}`     | All persona cards (see HTML comments in template)                                                                                                                                 |
-| `{{AI_UT_INSIGHT}}`           | 1–2 sentence aggregate insight across personas                                                                                                                                    |
-| `{{FD_JSON}}`                 | JS object: `{ fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical\|Major\|Minor' } }` — the report's JS computes CHOICE/NNG/Overall/verdict from this, see "Scoring" above |
+| `{{AI_UT_INSIGHT}}`           | 1–2 sentence aggregate insight across ALL personas — sits above the persona tab bar, not inside a tab |
+| `{{PERSONA_TABS_HTML}}`       | One tab button + one tab pane per persona in the resolved roster. Each pane = that persona's header (name/role), their mini CHOICE/NNG score line, task/quote/completion status, then their own walkthrough state cards (Minor+ findings only, same rule as before). Replaces the old separate Walkthrough/AI-UT-Simulation placeholders — see HTML comments in template for exact markup |
+| `{{FD_JSON}}`                 | JS object: `{ fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical\|Major\|Minor', p:['persona-slug', ...] } }` — `p` lists every persona-slug who encountered this finding's state (single entry normally, multiple when deduped across personas). The report's JS computes CHOICE/NNG/Overall/verdict (and, per persona, a filtered sub-score) from this, see "Scoring" above |
 | `{{PRD_SCORE}}`               | Score integer or `N/A`                                                                                                                                                            |
 | `{{EXPORT_FILENAME}}`         | `<branch-slug>-<YYYYMMDD>[-N]-pixel-review.md`                                                                                                                                    |
 
