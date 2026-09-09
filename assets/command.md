@@ -4,12 +4,14 @@ description: Design review — Playwright exploration + CHOICE+NNG-weighted UX a
 
 Run a full design review on the prototype. $ARGUMENTS
 
-**Never use `mcp__claude-in-chrome__*` tools for this workflow.** All exploration and interaction must
-go through `node_modules/pixel-review/src/driver.js` (Playwright, headless) via `flow.json` triggers —
-including `type:` and `select-text:` for text fields and custom dropdowns. If a state seems impossible
-to reach with the trigger DSL, extend the DSL in `node_modules/pixel-review/src/driver.js` rather than
-falling back to manual browser control; manual browser screenshots are far more expensive in context
-than the script's `result.json` output.
+**Never use `mcp__claude-in-chrome__*` tools to explore or interact with the PROTOTYPE.** All
+exploration and interaction there must go through `node_modules/pixel-review/src/driver.js`
+(Playwright, headless) via `flow.json` triggers — including `type:` and `select-text:` for text fields
+and custom dropdowns. If a state seems impossible to reach with the trigger DSL, extend the DSL in
+`node_modules/pixel-review/src/driver.js` rather than falling back to manual browser control; manual
+browser screenshots are far more expensive in context than the script's `result.json` output. This
+restriction is about the prototype only — reading a PRD doc is a separate concern with its own fallback
+in "Fetch PRD requirements" below.
 
 ## Pre-flight checks
 
@@ -189,8 +191,19 @@ Use this same final stem for `{{EXPORT_FILENAME}}` (`<stem>-pixel-review.md`) la
 
 **Do this BEFORE running Playwright.** The PRD determines what Playwright visits.
 
-Use the Atlassian MCP (`getConfluencePage`) or WebFetch on the PRD URL. Extract every
-user story, acceptance criteria, or feature requirement. Keep a numbered list — you'll use this to:
+Use the Atlassian MCP (`getConfluencePage`) for a Confluence URL, or WebFetch for any other public,
+fetchable doc URL.
+
+**If the PRD URL is a Google Doc, or WebFetch fails/comes back as a login wall or access-denied page**:
+WebFetch has no user identity — it can't see anything shared only with the user's own account. Fall
+back to `mcp__claude-in-chrome__*` (`navigate` to the URL, then `get_page_text` or `read_page`) to read
+it through the user's own logged-in Chrome session instead — "Viewer" access shared with their account
+is enough for this, since the browser carries their real session. This is the one exception to the
+"never use claude-in-chrome" rule above: it's reading a document, not touching the prototype. Never use
+it to fill in a form, accept a share request, or take any action on the doc — read-only.
+
+Extract every user story, acceptance criteria, or feature requirement. Keep a numbered list — you'll
+use this to:
 
 1. Generate the flow config for Playwright
 2. Produce the gap analysis in Framework 1
