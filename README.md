@@ -54,7 +54,7 @@ and after a few minutes writes an HTML report and opens it in your browser.
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | **Score strip**       | Overall / CHOICE / NNG, each 0–100. See [Design principles & scoring](#design-principles--scoring).                   |
 | **01 · Persona** | A single tab bar (one tab per persona in the resolved roster — from your PRD's target-users table, your own input, Mekari's internal persona library, a freshly cast synthetic panel, or — as a last resort — 5 generic role personas) sits above this and the next section. Identity only — role/goal/dossier plus their own CHOICE/NNG sub-score, not tied to this specific run. See [Persona-driven reviews](#persona-driven-reviews). |
-| **02 · Walkthrough & AI UT Simulation** | The same tab selection, now showing what happened when that persona used the prototype: their screenshots/findings (tagged Minor/Major/Critical, states with no issues aren't shown) and their simulated task narrative. |
+| **02 · Walkthrough & AI UT Simulation** | The same tab selection shows that persona's task narrative. The screenshots/findings below are shared across all personas by default (findings tagged Minor/Major/Critical, badged with whichever persona(s) they're relevant to) — separate per-persona screenshots only appear if exploration was escalated to genuinely divergent flows. |
 | **03 · CHOICE & NNG** | A cross-flow read across all personas: how the whole experience holds together, not just one screen at a time.        |
 | **04 · PRD Gap Analysis** | Every requirement from your PRD, checked off as Implemented / Partial / Not found. Only shown if you gave a PRD URL. Informational. |
 
@@ -156,11 +156,14 @@ work, behavior, cited requests, day-in-the-life) — never compressed into a nam
 Personas from your PRD or your own input (steps 1–2) use a simpler task/quote/completion card instead,
 since they don't have a research dossier behind them.
 
-**Multiple personas means multiple Playwright passes** — each persona gets its own `flow.json` and its
-own exploration run, since a new employee and a power user genuinely take different paths. This scales
-wall-clock time with roster size, but not meaningfully cost: Playwright execution and HTML generation
-are both effectively free token-wise, and screenshots are deduped when two personas land on the exact
-same screen/state.
+**Exploration is shared by default, even with multiple personas** — one `flow.json`, one Playwright
+pass, regardless of roster size. Persona perspective still shows up: findings get tagged to whichever
+persona(s) would actually notice/care (a confusing label might be Major for a new employee and a
+non-issue for a power user), and each persona's AI UT Simulation narrative reads the same screens
+through their own goal and familiarity. Only escalate to a separate `flow.json` **per persona** when
+you explicitly want genuinely divergent paths tested, or the PRD/roster implies real different entry
+points per role — that's the case where wall-clock time actually scales with roster size (N personas =
+N Playwright passes); the shared default stays roughly the same cost as a single-persona review.
 
 **Dimensions to combine when generating a B2B SaaS persona** (starting reference, not exhaustive —
   the two examples raised so far, New Subscriber and Power User, are really points on the *tenure* axis

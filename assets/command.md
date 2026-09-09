@@ -169,10 +169,12 @@ BFS fallback mode crawls the entire app's top-level navigation and produces a br
 only use it when the user has given no scope at all. Prefer instruction mode whenever any flow or
 feature intent can be read from the request; don't default to BFS just because a PRD wasn't provided.
 
-Confirm before proceeding, stating which mode was selected AND the resolved persona roster, e.g.:
+Confirm before proceeding, stating which mode was selected, the resolved persona roster, AND whether
+exploration will be shared or escalated per-persona (see "Generate flow config" below), e.g.:
 
 > Review scope: create-segment flow. Personas: Sales/CS Team Lead (Primary, from PRD), Marketing/
-> Campaign Manager (Secondary, from PRD). Proceeding with 2 personas — say so now to add/remove any.
+> Campaign Manager (Secondary, from PRD). Exploration: shared (1 Playwright pass) — say so now if you
+> want each persona to take a genuinely different path instead.
 
 If step 4e is already known to be needed at this point (roster short of the target participant count),
 append the STUDY BRIEF preview to this same message instead of stopping twice later.
@@ -237,26 +239,34 @@ Skip this entire section only in **BFS fallback mode**. Both PRD mode and instru
 mkdir -p reports/.tmp-review/
 ```
 
+**Default: ONE shared `flow.json`, regardless of roster size.** A separate exploration per persona
+multiplies wall-clock time (N personas = N full Playwright passes) for little benefit when their flows
+would overlap anyway — most personas doing "create a segment" hit the same screens. Persona
+perspective still comes through later (Framework 2/3 finding tags, Framework 4 narrative), just without
+re-running the browser per persona.
+
+**Escalate to a separate `flow.json` per persona** only when one of these is true:
+- The user explicitly asks for divergent flows per persona (e.g. "coba lihat power user pakai jalur
+  yang beda").
+- The PRD/roster itself implies genuinely different entry points per role (e.g. Primary reaches a
+  feature through a main menu, Secondary through a completely different screen) — not just "might
+  behave differently," an actual different route/starting point.
+
+State which case applies (shared or escalated) in the mode-confirmation line back in "Collect inputs"
+step 4, so the user can correct you before any Playwright run starts. When escalated, **enforce
+divergence**: if two personas would otherwise produce an identical `flow.json`, add at least one
+persona-specific state/step for one of them — the whole point of paying for N runs is that they
+genuinely differ.
+
 ### PRD mode
 
 From the PRD requirements, produce a JSON array that maps every user story to a specific route +
-state + interaction trigger.
-
-If the persona roster has more than one persona, branching per persona here is optional — PRD mode's
-requirement-to-state mapping already gives broad coverage. Only author persona-specific entries when
-the PRD itself implies role-specific entry points (e.g. Primary and Secondary personas reach the same
-feature through different menus).
+state + interaction trigger. This is naturally shared across personas (one map covering every user
+story) unless escalated per the rule above.
 
 ### Instruction mode
 
-From the user's flow/feature instruction (e.g. `"create ticket flow"`), work out what to test. If the
-persona roster has one or more personas, **repeat steps 1–4 once per persona** — each persona's goal
-and familiarity level shapes both the discovery pass and which triggers get authored (e.g. a "new
-employee" persona may open a help tooltip or misclick before finding the right control; a power-user
-persona jumps straight to the fastest path). **Enforce divergence**: if two personas would otherwise
-produce an identical `flow.json`, add at least one persona-specific state/step for one of them rather
-than letting the files end up byte-identical — the point of running multiple personas is that they
-genuinely differ.
+From the user's flow/feature instruction (e.g. `"create ticket flow"`), work out what to test:
 
 1. Identify the most likely starting route from the given prototype URL (e.g. `/tickets/all-tickets`
    for a "create ticket flow").
@@ -277,10 +287,15 @@ genuinely differ.
 5. Discard the discovery-pass `result.json` before running the real flow-config pass in **Run
    Playwright** below — it was only for reconnaissance.
 
+If escalated per the rule above, repeat steps 1–4 once per persona instead of once overall — each
+persona's goal and familiarity level shapes both the discovery pass and which triggers get authored
+(e.g. a "new employee" persona may open a help tooltip or misclick before finding the right control; a
+power-user persona jumps straight to the fastest path).
+
 Both modes write the completed JSON using the same format, trigger table, and mapping rules below —
-to `reports/.tmp-review/flow.json` when the roster has 0 or 1 persona, or to
+to `reports/.tmp-review/flow.json` when shared (the default), or to
 `reports/.tmp-review/<persona-slug>/flow.json` (one file per persona, using the slug from "Collect
-inputs" step 4) when the roster has more than 1.
+inputs" step 4) when escalated.
 
 **Format:**
 
@@ -340,22 +355,22 @@ inputs" step 4) when the roster has more than 1.
 - Every US from the PRD (or flow tag, in instruction mode) must appear in at least one entry's `us`
   array.
 
-Write the completed JSON per the persona-path rule above (flat `reports/.tmp-review/flow.json` for a
-0-or-1-persona roster, `reports/.tmp-review/<persona-slug>/flow.json` per persona otherwise).
+Write the completed JSON per the rule above: flat `reports/.tmp-review/flow.json` when shared (the
+default), `reports/.tmp-review/<persona-slug>/flow.json` per persona when escalated.
 
 ---
 
 ## Run Playwright
 
-**PRD mode or instruction mode, roster of 0 or 1 persona** (flow config exists), run in flow config
-mode:
+**PRD mode or instruction mode, shared flow.json** (the default — flow config exists), run once in flow
+config mode:
 
 ```bash
 node node_modules/pixel-review/src/driver.js --url <prototype-url> --flow-config reports/.tmp-review/flow.json --out-dir reports/.tmp-review/
 ```
 
-**PRD mode or instruction mode, roster of more than 1 persona** — run once per persona, each into its
-own subdirectory so screenshots/results never collide:
+**PRD mode or instruction mode, escalated to per-persona flow.json** — run once per persona, each into
+its own subdirectory so screenshots/results never collide:
 
 ```bash
 node node_modules/pixel-review/src/driver.js --url <prototype-url> --flow-config reports/.tmp-review/<persona-slug>/flow.json --out-dir reports/.tmp-review/<persona-slug>/
@@ -368,18 +383,19 @@ node node_modules/pixel-review/src/driver.js --url <prototype-url> --out-dir rep
 ```
 
 The script uses Chrome with your existing session (copies profile to temp dir if Chrome is running).
-After completion, read the output — `reports/.tmp-review/result.json` for a single run, or each
-persona's `reports/.tmp-review/<persona-slug>/result.json` for a multi-persona roster:
+After completion, read the output — `reports/.tmp-review/result.json` for the shared run, or each
+persona's `reports/.tmp-review/<persona-slug>/result.json` when escalated:
 
 ```bash
 cat reports/.tmp-review/result.json
 ```
 
-**Dedupe before scoring, when the roster has more than 1 persona**: compare every persona's
-`result.json` entries by exact `route + "::" + state` string match. If two or more personas produced
-the same key, read and score that screenshot only **once** — never re-spend vision tokens re-reading an
-identical image — and record which personas visited it (this becomes the `p` array on that finding's
-FD_JSON entry, see "Apply review frameworks" below).
+**Dedupe before scoring, only if escalated**: compare every persona's `result.json` entries by exact
+`route + "::" + state` string match. If two or more personas produced the same key, read and score that
+screenshot only **once** — never re-spend vision tokens re-reading an identical image — and record
+which personas visited it (this becomes the `p` array on that finding's FD_JSON entry, see "Apply
+review frameworks" below). This doesn't apply to the shared/default run — there's only one `result.json`
+to begin with; `p` there comes from persona-lens tagging instead (see Framework 2/3 below).
 
 ---
 
@@ -445,6 +461,19 @@ For each principle, note screens where it is satisfied and screens where it fall
 finding recorded here needs a severity, since the score comes entirely from the findings you tag
 (see "Scoring" below).
 
+**Persona tagging (`p` array on each finding, if there's a roster):**
+- **Shared run (default)** — one exploration, judged through each persona's own lens. A finding isn't
+  automatically relevant to everyone: an unclear label might be Major for a new employee and simply
+  not register for a power user. Tag only the persona(s) who would actually notice/care at the
+  severity you record. One finding = one `fN` entry = one severity — never author two entries for the
+  same underlying issue just to give it different severities per persona (that double-counts the same
+  problem against the global Overall score, which sums every entry regardless of `p`). If perceived
+  severity genuinely varies, record the **worst-case severity** and tag `p` only to the persona(s) who
+  actually experience it at that level; a persona who'd barely notice it simply isn't tagged, per the
+  rule above — mention the milder read for other personas in the finding's description text instead.
+- **Escalated (per-persona flow.json)** — `p` instead reflects which persona(s)' own run actually
+  produced the finding, per the dedupe rule in "Run Playwright" above.
+
 Use inline reference format: `CHOICE · Clear`
 
 ---
@@ -456,16 +485,20 @@ Evaluate all 10 heuristics from `node_modules/pixel-review/assets/principles.md`
 here needs a severity, since the score comes entirely from the findings you tag (see "Scoring"
 below).
 
+Tag `p` the same way as Framework 2 above — persona-lens judgment on the shared run by default, or
+per-run attribution when escalated.
+
 Use inline reference format: `NNG · H4`
 
 ---
 
 ### Framework 4 — AI UT Simulation (informational — never factors into Overall)
 
-Simulate each persona in the roster resolved in "Collect inputs" step 4, each narrating **their own**
-walkthrough/trace — not one shared walkthrough narrated N ways. Base each persona's narrative strictly
-on their own `result.json` (or their share of the deduped multi-persona run). This framework produces
-two distinct kinds of content, which land in two different report sections (see "Generate HTML report"
+Simulate each persona in the roster resolved in "Collect inputs" step 4, each narrating the walkthrough
+through **their own lens**. Base the narrative on their own `result.json` when escalated to per-persona
+flow.json, or on the one shared `result.json` interpreted through their goal/familiarity when running
+the shared/default flow — same screens, different read on what happened. This framework produces two
+distinct kinds of content, which land in two different report sections (see "Generate HTML report"
 below) — don't blend them:
 
 **Identity** (who this persona is — goes in Section 01 "Persona", independent of this run):
@@ -483,7 +516,8 @@ below) — don't blend them:
 - Primary task they'd attempt, informed by their goal and — if prior UT/concept-test research on this
   feature was found (Collect inputs step 4d) — specifically re-probing any known friction points
   rather than only a generic happy path
-- Findings from their perspective, drawn from their own flow.json run
+- Findings from their perspective — the ones tagged to them in `p` (Framework 2/3), from the shared run
+  or their own escalated run
 - A simulated quote (first-person, realistic)
 - Task completion: **Berhasil** / **Berhasil dengan kesulitan** / **Gagal**
 
@@ -579,7 +613,8 @@ node /tmp/gen-pixel-report.mjs
 | `{{AI_UT_INSIGHT}}`           | 1–2 sentence aggregate insight across ALL personas — sits above the persona tab bar, not inside a tab |
 | `{{PERSONA_TAB_BAR_HTML}}`    | ONE `.persona-tabs` bar (one `.tab-btn` per persona), rendered once above Section 01 — not repeated inside either section. `switchPersonaTab()` toggles the matching pane in both Section 01 and Section 02 by `data-persona`, so one bar controls both |
 | `{{PERSONA_TABS_HTML}}`       | Section 01 "Persona" — one tab pane per persona in the resolved roster, IDENTITY only, no tab bar (that's `{{PERSONA_TAB_BAR_HTML}}` above). Each pane = that persona's header (name/role, mini CHOICE/NNG score line) + either `.persona-dossier` (full User Synthetic dossier, verbatim, for `hasDossier: true` personas) or `.persona-identity` (Goal/Pain, for PRD-table/user-input personas) — see HTML comments in template |
-| `{{WALKTHROUGH_TABS_HTML}}`   | Section 02 "Walkthrough & AI UT Simulation" — one tab pane per persona (same `data-persona` slugs/order as Section 01, no tab bar here either) with their task/quote/completion narrative (`.persona-body`) plus their own walkthrough state cards (Minor+ findings only, same rule as before) — see HTML comments in template |
+| `{{AI_UT_TABS_HTML}}`         | Section 02 "Walkthrough & AI UT Simulation" — one tab pane per persona (same `data-persona` slugs/order as Section 01, no tab bar here either), NARRATIVE ONLY: task/quote/completion (`.persona-body`). No state-cards here — see `{{WALKTHROUGH_STATES_HTML}}` below |
+| `{{WALKTHROUGH_STATES_HTML}}` | Section 02, the actual screenshots + findings. **Shared run (default)**: ONE flat sequence of state cards, not tabbed — every finding-item gets a `.finding-personas` row of small `.persona-chip` badges (from its `p` array) instead of duplicating screenshots per persona. **Escalated run**: one tab pane per persona (same slugs as above), each with their own full set of state cards, no badges needed since the tab already scopes it. Minor+ findings only, same rule as before either way — see HTML comments in template for both shapes |
 | `{{FD_JSON}}`                 | JS object: `{ fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical\|Major\|Minor', p:['persona-slug', ...] } }` — `p` lists every persona-slug who encountered this finding's state (single entry normally, multiple when deduped across personas). The report's JS computes CHOICE/NNG/Overall/verdict (and, per persona, a filtered sub-score) from this, see "Scoring" above |
 | `{{PRD_SCORE}}`               | Score integer or `N/A`                                                                                                                                                            |
 | `{{EXPORT_FILENAME}}`         | `<branch-slug>-<YYYYMMDD>[-N]-pixel-review.md`                                                                                                                                    |

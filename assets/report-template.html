@@ -392,6 +392,23 @@
         width: 100%;
         margin-top: 4px;
       }
+      .finding-personas {
+        order: 6;
+        width: 100%;
+        display: flex;
+        gap: 4px;
+        margin-bottom: 6px;
+      }
+      .persona-chip {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 9.5px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
 
       .decision-sel {
         order: 3;
@@ -1103,15 +1120,13 @@
           <h2 class="section-title">Walkthrough &amp; AI UT Simulation</h2>
         </div>
         <div class="callout info" style="margin-bottom: 14px">{{AI_UT_INSIGHT}}</div>
-        <!-- NOTE: {{WALKTHROUGH_TABS_HTML}} = one .tab-pane per persona containing their
-             task/quote/completion narrative PLUS their own walkthrough state-cards — this is
-             simulation OUTPUT, not identity. No .persona-tabs bar here either — same shared bar
-             above controls this section too, matching by data-persona. Inject directly, no extra
-             wrapper. -->
-        {{WALKTHROUGH_TABS_HTML}}
+        <!-- NOTE: {{AI_UT_TABS_HTML}} = one .tab-pane per persona, NARRATIVE ONLY (task/quote/
+             completion) — no state-cards here, those go in {{WALKTHROUGH_STATES_HTML}} below and
+             may or may not be per-persona (see its own note). Same shared tab bar above (Section 01)
+             controls this too, matching by data-persona. Inject directly, no extra wrapper. -->
+        {{AI_UT_TABS_HTML}}
         <!--
-    Structure to emit — one .tab-pane per persona, same data-persona slugs as Section 01's panes
-    (must match exactly so the shared tab bar's switchPersonaTab() keeps both sections in sync):
+    Structure to emit — one .tab-pane per persona, same data-persona slugs as Section 01's panes:
 
     <div class="tab-pane active" id="tab-walk-persona-slug-1" data-persona="persona-slug-1">
       <div class="persona-card" style="margin-bottom: 16px">
@@ -1126,48 +1141,76 @@
           </div>
         </div>
       </div>
+    </div>
 
-      [This persona's own walkthrough — one state-card per state with a Minor+ finding from THIS
-      persona's own result.json (or their share of a deduped multi-persona run). Passed states get no
-      card. Same state-card structure as before:]
-      <div class="state-card">
-        <div class="state-head">
-          <span class="state-idx">STATE / 01</span>
-          <h3 class="state-name">Initial</h3>
+    <div class="tab-pane" id="tab-walk-persona-slug-2" data-persona="persona-slug-2">
+      [same structure for the next persona]
+    </div>
+    [... one tab-pane per persona ...]
+  -->
+
+        <!-- NOTE: {{WALKTHROUGH_STATES_HTML}} = the actual screenshots + findings. Two possible
+             shapes depending on whether exploration was shared (default) or escalated to a
+             per-persona flow.json (see command doc "Generate flow config"):
+
+             SHARED (default): ONE flat sequence of .state-card — not wrapped in tab-panes, always
+             visible regardless of which persona tab is active, since all personas saw the same
+             screens. Each finding-item gets a .finding-personas row of small .persona-chip badges
+             showing which persona(s) this finding is tagged to (`p` array) — that's how persona
+             perspective shows up here instead of duplicating screenshots per tab.
+
+             ESCALATED: one .tab-pane per persona (same data-persona slugs as above), each with its
+             own full set of .state-card — genuinely different screenshots per persona, so THIS case
+             does need separate copies, no .finding-personas badges needed since the tab itself
+             already scopes it to one persona. -->
+        {{WALKTHROUGH_STATES_HTML}}
+        <!--
+    SHARED shape (default) — flat, no tab-pane wrapper, one state-card per state with a Minor+
+    finding, Passed states get no card:
+
+    <div class="state-card">
+      <div class="state-head">
+        <span class="state-idx">STATE / 01</span>
+        <h3 class="state-name">Initial</h3>
+      </div>
+      <div class="screenshot-row">
+        <img class="shot-thumb" src="data:image/png;base64,BASE64_HERE" alt="..." onclick="expandShot(this)" title="Klik untuk perbesar">
+        <div class="shot-note">Brief description of the state — what US it covers, key context. <strong>Apa yang terlihat:</strong> Description of what's visible in the screenshot.</div>
+      </div>
+      <div class="findings-grid">
+        <div class="findings-col">
+          (first col hidden by CSS — kept for structure)
         </div>
-        <div class="screenshot-row">
-          <img class="shot-thumb" src="data:image/png;base64,BASE64_HERE" alt="..." onclick="expandShot(this)" title="Klik untuk perbesar">
-          <div class="shot-note">Brief description of the state — what US it covers, key context. <strong>Apa yang terlihat:</strong> Description of what's visible in the screenshot.</div>
-        </div>
-        <div class="findings-grid">
-          <div class="findings-col">
-            (first col hidden by CSS — kept for structure)
-          </div>
-          <div class="findings-col">
-            <div class="finding-item" id="fN">
-              <div class="finding-bar SEVERITY"></div>
-              <div class="finding-content">
-                <div class="finding-tag SEVERITY">Major|Minor|Passed</div>
-                <div class="finding-fw">FRAMEWORK · Principle</div>
-                <div class="finding-text">Short title of the finding</div>
-                <div class="finding-desc">Detailed explanation of the issue and its impact.</div>
-                <div class="decision-sel">
-                  <button class="sel-opt" data-action="ai" data-prompt="PROMPT_TEXT" onclick="selectDecision(this,'fN')">Fix by AI</button>
-                  <button class="sel-opt" data-action="ignore" onclick="selectDecision(this,'fN')">Abaikan</button>
-                  <button class="sel-opt" data-action="discuss" onclick="selectDecision(this,'fN')">Diskusi</button>
-                </div>
-                <div class="disc-note-area"><textarea placeholder="Tambahkan catatan..."></textarea></div>
+        <div class="findings-col">
+          <div class="finding-item" id="fN">
+            <div class="finding-bar SEVERITY"></div>
+            <div class="finding-content">
+              <div class="finding-tag SEVERITY">Major|Minor|Passed</div>
+              <div class="finding-fw">FRAMEWORK · Principle</div>
+              <div class="finding-text">Short title of the finding</div>
+              <div class="finding-desc">Detailed explanation of the issue and its impact.</div>
+              <div class="finding-personas">
+                <span class="persona-chip" style="background:#EEF0FC;color:#4B61DC" title="Persona Name 1">N</span>
+                [one .persona-chip per persona tagged in this finding's `p` array — omit this row entirely if no roster]
               </div>
+              <div class="decision-sel">
+                <button class="sel-opt" data-action="ai" data-prompt="PROMPT_TEXT" onclick="selectDecision(this,'fN')">Fix by AI</button>
+                <button class="sel-opt" data-action="ignore" onclick="selectDecision(this,'fN')">Abaikan</button>
+                <button class="sel-opt" data-action="discuss" onclick="selectDecision(this,'fN')">Diskusi</button>
+              </div>
+              <div class="disc-note-area"><textarea placeholder="Tambahkan catatan..."></textarea></div>
             </div>
           </div>
         </div>
       </div>
-      [... repeat state-card per Minor+ state for this persona ...]
     </div>
+    [... repeat state-card per Minor+ state, no persona wrapper ...]
 
-    <div class="tab-pane" id="tab-walk-persona-slug-2" data-persona="persona-slug-2">
-      [same structure: persona-card > persona-body (task/find/quote/status) + state-cards, for the
-      next persona]
+    ESCALATED shape — same .tab-pane pattern as {{AI_UT_TABS_HTML}} above, but each pane holds a full
+    set of .state-card (no .finding-personas badges needed, the tab already scopes it):
+
+    <div class="tab-pane active" id="tab-states-persona-slug-1" data-persona="persona-slug-1">
+      [this persona's own state-cards, same markup as the SHARED shape above, one tab-pane per persona]
     </div>
     [... one tab-pane per persona ...]
   -->
