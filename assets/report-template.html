@@ -988,6 +988,23 @@
         </div>
       </header>
 
+      <!-- ─── Persona tab bar — shared, sits above both Section 01 and Section 02 ─── -->
+      <!-- NOTE: {{PERSONA_TAB_BAR_HTML}} = ONE .persona-tabs bar (one .tab-btn per persona), rendered
+           ONCE here, not repeated inside each section. switchPersonaTab() toggles the matching
+           .tab-pane in BOTH Section 01 and Section 02 by data-persona, regardless of there being only
+           one bar. Inject directly, no extra wrapper. -->
+      {{PERSONA_TAB_BAR_HTML}}
+      <!--
+    Structure to emit — one .tab-btn per persona in the resolved roster, first one starts with class
+    "active":
+
+    <div class="persona-tabs">
+      <button class="tab-btn active" data-persona="persona-slug-1" onclick="switchPersonaTab('persona-slug-1')">Persona Name 1</button>
+      <button class="tab-btn" data-persona="persona-slug-2" onclick="switchPersonaTab('persona-slug-2')">Persona Name 2</button>
+      [one button per persona]
+    </div>
+  -->
+
       <!-- ─── Persona ─── -->
       <hr class="section-divider" />
       <div style="margin-bottom: 32px">
@@ -995,27 +1012,19 @@
           <span class="section-num">01</span>
           <h2 class="section-title">Persona</h2>
         </div>
-        <!-- NOTE: {{PERSONA_TABS_HTML}} = a .persona-tabs bar (one .tab-btn per persona) followed by
-             one .tab-pane per persona — IDENTITY ONLY (who this persona is), not simulation output.
-             First pane + first tab-btn start with class "active"; the rest start without it —
-             switchPersonaTab() keeps this section's pane AND Section 02's pane in sync for the same
-             persona (both share the same data-persona value, so give every tab-btn/tab-pane pair in
-             BOTH sections the exact same data-persona slug). Inject directly, no extra wrapper. -->
+        <!-- NOTE: {{PERSONA_TABS_HTML}} = one .tab-pane per persona — IDENTITY ONLY (who this
+             persona is), not simulation output. No .persona-tabs bar here — that's rendered once,
+             shared, above (see {{PERSONA_TAB_BAR_HTML}}). First pane starts with class "active"; the
+             rest start without it. Inject directly, no extra wrapper. -->
         {{PERSONA_TABS_HTML}}
         <!--
-    Structure to emit — one .tab-btn + one .tab-pane per persona in the resolved roster. IDENTITY
-    content only: persona-head (avatar/name/role/mini-score) + EITHER .persona-dossier (verbatim,
-    hasDossier:true personas) OR .persona-identity (Goal/Pain/Workaround from the PRD's persona
-    table, or a short description from user input — for personas with no dossier). This whole block
-    is a comment; do not put a literal "--" followed by ">" anywhere inside it, or the comment ends
-    early and this example markup renders for real. Use bracketed notes like [one per persona]
-    instead of nested HTML comments here.
-
-    <div class="persona-tabs">
-      <button class="tab-btn active" data-persona="persona-slug-1" onclick="switchPersonaTab('persona-slug-1')">Persona Name 1</button>
-      <button class="tab-btn" data-persona="persona-slug-2" onclick="switchPersonaTab('persona-slug-2')">Persona Name 2</button>
-      [one button per persona]
-    </div>
+    Structure to emit — one .tab-pane per persona in the resolved roster. IDENTITY content only:
+    persona-head (avatar/name/role/mini-score) + EITHER .persona-dossier (verbatim, hasDossier:true
+    personas) OR .persona-identity (Goal/Pain/Workaround from the PRD's persona table, or a short
+    description from user input — for personas with no dossier). This whole block is a comment; do
+    not put a literal "--" followed by ">" anywhere inside it, or the comment ends early and this
+    example markup renders for real. Use bracketed notes like [one per persona] instead of nested
+    HTML comments here.
 
     <div class="tab-pane active" id="tab-persona-persona-slug-1" data-persona="persona-slug-1">
       <div class="persona-card">
@@ -1094,22 +1103,15 @@
           <h2 class="section-title">Walkthrough &amp; AI UT Simulation</h2>
         </div>
         <div class="callout info" style="margin-bottom: 14px">{{AI_UT_INSIGHT}}</div>
-        <!-- NOTE: {{WALKTHROUGH_TABS_HTML}} = the SAME tab bar repeated (identical persona slugs,
-             order, and labels as {{PERSONA_TABS_HTML}} above — switchPersonaTab() keeps both
-             sections' tabs in sync since it matches on data-persona, not on section) followed by one
-             .tab-pane per persona containing their task/quote/completion narrative PLUS their own
-             walkthrough state-cards — this is simulation OUTPUT, not identity. Inject directly, no
-             extra wrapper. -->
+        <!-- NOTE: {{WALKTHROUGH_TABS_HTML}} = one .tab-pane per persona containing their
+             task/quote/completion narrative PLUS their own walkthrough state-cards — this is
+             simulation OUTPUT, not identity. No .persona-tabs bar here either — same shared bar
+             above controls this section too, matching by data-persona. Inject directly, no extra
+             wrapper. -->
         {{WALKTHROUGH_TABS_HTML}}
         <!--
-    Structure to emit — same persona list as Section 01, same tab-btn markup (data-persona values
-    must match Section 01's exactly so switchPersonaTab() keeps both sections in sync):
-
-    <div class="persona-tabs">
-      <button class="tab-btn active" data-persona="persona-slug-1" onclick="switchPersonaTab('persona-slug-1')">Persona Name 1</button>
-      <button class="tab-btn" data-persona="persona-slug-2" onclick="switchPersonaTab('persona-slug-2')">Persona Name 2</button>
-      [one button per persona]
-    </div>
+    Structure to emit — one .tab-pane per persona, same data-persona slugs as Section 01's panes
+    (must match exactly so the shared tab bar's switchPersonaTab() keeps both sections in sync):
 
     <div class="tab-pane active" id="tab-walk-persona-slug-1" data-persona="persona-slug-1">
       <div class="persona-card" style="margin-bottom: 16px">
