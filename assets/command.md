@@ -48,6 +48,24 @@ If MISSING: stop and tell the user:
 
 ---
 
+## Determine output mode
+
+If this run was already triggered by the **Push workflow** gate in the repo's `AGENTS.md`/`CLAUDE.md`
+(the user already picked "Review + generate HTML report" or "Review + summary in this chat" there),
+skip this — it's already answered, asking again is redundant.
+
+Otherwise (the user typed `/pixel-review` directly), ask once, offering exactly these 2 options:
+
+1. **Generate full HTML report** _(default)_ — the usual self-contained report, opened in the browser
+   at the end.
+2. **Summary in this chat only** — run the exact same review (Playwright exploration + CHOICE+NNG-
+   weighted audit) but report findings as a chat summary instead; skip generating the HTML report file.
+
+Set `html_output = false` for option 2. Everything downstream (frameworks, scoring, persona roster) is
+identical either way — only the final "Generate HTML report" step differs, see there.
+
+---
+
 ## Collect inputs
 
 Resolve prototype URL, PRD URL, and flow/feature scope from these sources, in priority order — stop
@@ -518,6 +536,12 @@ The exact mechanism, so you understand what the report will show even though you
 
 ## Generate HTML report
 
+**Skip this entire section if `html_output = false`** ("Determine output mode" above). Instead,
+summarize the same findings directly in this chat: Overall/CHOICE/NNG described qualitatively (no score
+number — same rule as `{{HEADLINE}}`/`{{SUBTITLE_HTML}}` below), walkthrough highlights per persona
+(tab-equivalent — one subsection per persona), and PRD gaps if PRD mode was used. Everything else in
+"Apply review frameworks" still applies as-is; only this HTML-generation step is replaced by prose.
+
 After all 4 frameworks are complete, generate the report by filling in
 `node_modules/pixel-review/assets/report-template.html`.
 
@@ -579,6 +603,9 @@ rm -rf reports/.tmp-review/
 ---
 
 ## Open report
+
+**Skip this section if `html_output = false`** — the chat summary from "Generate HTML report" above is
+the deliverable; there's no file to open.
 
 ```bash
 open reports/<branch-slug>-<YYYYMMDD>[-N].html
