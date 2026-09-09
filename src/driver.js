@@ -302,6 +302,28 @@ async function executeFlowStep(page, trigger) {
           (inner || near[0])?.click();
         }, text)
         .catch(() => {});
+    } else if (step.startsWith("check:")) {
+      // check:<input-selector> — for custom radio/checkbox controls whose native input is
+      // visually hidden behind a styled span, so neither page.click nor the text matchers
+      // reach it. Click the associated <label> (the real hit target the user sees); fall
+      // back to a forced click on the input itself.
+      const sel = step.slice(6);
+      const clicked = await page
+        .evaluate((s) => {
+          const input = document.querySelector(s);
+          if (!input) return false;
+          const label =
+            (input.id && document.querySelector(`label[for="${input.id}"]`)) ||
+            input.closest("label");
+          if (label) {
+            label.click();
+            return true;
+          }
+          input.click();
+          return true;
+        }, sel)
+        .catch(() => false);
+      if (!clicked) await page.click(sel, { timeout: 5000, force: true }).catch(() => {});
     } else if (step.startsWith("type:")) {
       // type:<selector>|<text> — click the selector to focus it, then type the
       // text via real keystrokes (so autocomplete/input listeners fire), e.g.

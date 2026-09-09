@@ -29,12 +29,18 @@ run `/pixel-review` again. Do not proceed.
 node -e "const {chromium}=require('@playwright/test');const fs=require('fs');process.exit(fs.existsSync(chromium.executablePath())?0:1)" && echo "OK" || echo "MISSING"
 ```
 
+`test -d node_modules/@playwright/test` alone is not enough — the npm package can be present while the
+actual browser binary was never downloaded, and this check would pass either way. The check above
+verifies the binary itself is on disk (it fails the same way, with a non-zero exit, if `@playwright/test`
+isn't even installed — same MISSING branch covers both).
+
 If MISSING: stop and tell the user:
 
-> The Chromium browser binary isn't installed yet. Run this once per machine, then run `/pixel-review`
-> again:
+> Playwright's Chromium browser binary isn't installed yet (or `@playwright/test` itself is missing).
+> Run these once per machine, then run `/pixel-review` again:
 >
 > ```
+> pnpm add -D @playwright/test   # only if the package itself is missing
 > npx playwright install chromium
 > ```
 
@@ -196,6 +202,7 @@ table, and mapping rules below.
 | `click-text:<label>`      | Click a `button`/`a`/`[role=button]`/`.mp-button` by exact text content                                                                                                                                                     |
 | `select-text:<label>`     | Click a dropdown/autocomplete option row by exact text — broader match than `click-text` (also matches `li`, `[role=option]`, popover/list items), use for autocomplete/popover-list options that aren't real buttons; also matches multi-line rows (label + secondary text) by prefix |
 | `click-in:<container-selector>\|<label>` | Click by exact text, scoped to a container — use when the same label appears in more than one place (e.g. a closed popover that stays mounted off-screen) |
+| `check:<input-selector>`  | Check/toggle a radio or checkbox whose native input is visually hidden behind a styled span — clicks the associated `<label>`, falling back to a forced click on the input itself |
 | `type:<selector>\|<text>` | Click `<selector>` to focus it, then type `<text>` via real keystrokes (fires input/autocomplete listeners). Omit `<selector>\|` to type into whatever already has focus (chain right after a `click:`/`select-text:` step) |
 | `wait:<ms>`               | Wait N milliseconds                                                                                                                                                                                                         |
 | `scroll`                  | Scroll to page bottom — also scrolls the tallest inner scroll container, for app shells that pin the header/footer and leave the window itself nothing to scroll                                                          |
