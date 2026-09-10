@@ -72,15 +72,28 @@ Resolve prototype URL, PRD URL, and flow/feature scope from these sources, in pr
 at the first source that supplies a given input, and never ask for something an earlier source
 already gave you:
 
-1. **`$ARGUMENTS`** — any URL found is the prototype URL (or the PRD/doc URL, if it looks like
-   Confluence/Coda/Superhuman); non-URL text is the flow/feature instruction, e.g. `"create ticket
-   flow"` in `"create ticket flow https://prototype.example.com/tickets/all-tickets"`.
+1. **`$ARGUMENTS`** — classify every URL found by concrete pattern, don't guess from vibes:
+   - **PRD/doc URL** if it matches: `*.atlassian.net/wiki/*` (Confluence), `coda.io/d/*` (Coda),
+     `docs.superhuman.com/d/*` (Superhuman Docs), `docs.google.com/document/*` or `drive.google.com/*`
+     (Google Docs), or any other URL whose host is clearly a document/wiki platform rather than the
+     project's own prototype domain.
+   - **Prototype URL** — any URL that doesn't match the above, e.g. `localhost:*`, a Vercel/Netlify
+     preview domain, or the product's own domain.
+   - **If more than one URL is given**, classify each independently by the rules above — don't assume
+     "first URL = prototype, second = PRD" or vice versa. It's common to get both in one message,
+     e.g. `"create ticket flow https://prototype.example.com/tickets https://docs.google.com/document/d/xyz"`.
+   - Non-URL text is the flow/feature instruction, e.g. `"create ticket flow"` in the example above.
+   - **If a URL doesn't clearly match any pattern above**, don't silently drop it or silently guess —
+     state your best-guess classification in the confirmation line (step "Determine review mode"
+     below) so the user can correct it before anything expensive runs, rather than it quietly becoming
+     neither a PRD nor a prototype URL and falling through to BFS fallback mode by accident.
 2. **The current conversation**, if `/pixel-review` is running in the same session as the "vibe
    coding" (implementing/iterating) work that came right before it — don't make the user restate
    context you already have from watching them build it:
    - **Flow/feature scope** — infer from what was just implemented: which routes/pages, which
      feature or user story.
-   - **PRD URL** — reuse a Confluence/Coda/doc link already shared earlier in this conversation.
+   - **PRD URL** — reuse a Confluence/Coda/Google Docs/doc link already shared earlier in this
+     conversation (same classification rules as step 1 above).
    - **Prototype URL** — reuse a URL already established this session (e.g. from a `pnpm dev` run,
      or a route already navigated to together).
 3. **Ask the user** — only for whatever steps 1–2 didn't supply:
@@ -222,8 +235,18 @@ is enough for this, since the browser carries their real session. This is the on
 "never use claude-in-chrome" rule above: it's reading a document, not touching the prototype. Never use
 it to fill in a form, accept a share request, or take any action on the doc — read-only.
 
-Extract every user story, acceptance criteria, or feature requirement. Keep a numbered list — you'll
-use this to:
+**If the fetched PRD is an anchor/index doc, follow the links — don't stop here.** Some PRDs
+explicitly frame themselves as an index (look for language like "This is an ANCHOR PRD," "indexes the
+child PRDs," or a Phase Index/table of linked documents) and say outright that execution detail —
+constraints, user stories, acceptance criteria, screens — lives in separate **child PRDs**, not in the
+anchor itself. An anchor typically only has the initiative-level problem, personas, and metrics — not
+enough to write an accurate `flow.json`. If you stop at the anchor, you'll end up guessing at the flow
+via trial-and-error discovery instead of following documented requirements, which is exactly the
+expensive, unfocused exploration this mode exists to avoid. Fetch every linked child PRD relevant to
+the flow/feature in scope before extracting requirements below.
+
+Extract every user story, acceptance criteria, or feature requirement (from the anchor AND any child
+PRDs fetched above). Keep a numbered list — you'll use this to:
 
 1. Generate the flow config for Playwright
 2. Produce the gap analysis in Framework 1
