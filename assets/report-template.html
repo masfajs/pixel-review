@@ -182,11 +182,62 @@
         padding: 2px 9px;
       }
 
+      .score-note {
+        margin-top: 12px;
+        font-size: 12px;
+        line-height: 18px;
+        color: var(--mp-text-secondary);
+      }
+      .score-note[hidden] {
+        display: none;
+      }
+      .score-note strong {
+        color: var(--mp-text-default);
+      }
+      .coverage-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+      }
+      .coverage-chip {
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 10.5px;
+        padding: 2px 9px;
+        border-radius: var(--mp-radii-full);
+        color: var(--mp-text-secondary);
+        outline: 1px solid var(--mp-border-default);
+      }
+      .coverage-chip.unscored {
+        color: var(--mp-text-warning-orange);
+        background: var(--mp-background-warning-orange);
+        outline: none;
+      }
+      .type-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 12px 0 0;
+      }
+      .sub-block-title {
+        margin: 28px 0 0;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .sub-block ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+        font-size: 13px;
+        line-height: 20px;
+        color: var(--mp-text-secondary);
+      }
+
       .score-legend {
         display: flex;
         gap: 20px;
         flex-wrap: wrap;
-        margin-top: 16px;
+        margin-top: 8px;
+        margin-bottom: 40px;
         font-size: 11.5px;
         color: var(--mp-text-placeholder);
         font-family: ui-monospace, Menlo, Consolas, monospace;
@@ -366,6 +417,27 @@
       .finding-tag.good {
         color: var(--mp-text-success);
         background: var(--mp-background-success);
+      }
+      .finding-tag.critical {
+        color: var(--mp-text-danger);
+        background: var(--mp-background-danger);
+        outline: 1px solid var(--mp-text-danger);
+      }
+      .finding-tag.cosmetic {
+        color: var(--mp-text-secondary);
+        background: transparent;
+        outline: 1px solid var(--mp-border-default);
+      }
+      .type-tag {
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 10.5px;
+        letter-spacing: 0.04em;
+        order: 2;
+        margin-left: 6px;
+        padding: 1px 8px;
+        border-radius: var(--mp-radii-full);
+        color: var(--mp-text-secondary);
+        outline: 1px solid var(--mp-border-default);
       }
       .finding-fw {
         font-family: ui-monospace, Menlo, Consolas, monospace;
@@ -565,8 +637,6 @@
         flex-wrap: wrap;
         gap: 6px;
         margin-bottom: 16px;
-        border-bottom: 1px solid var(--mp-border-default);
-        padding-bottom: 10px;
       }
       .tab-btn {
         font-family: var(--mp-fonts-body);
@@ -978,7 +1048,6 @@
             ></span
           >
           <span>{{REVIEW_DATE}}</span>
-          <span>{{META_STATS}}</span>
         </div>
 
         <div class="stat-strip">
@@ -1010,7 +1079,7 @@
            ONCE here, not repeated inside each section. switchPersonaTab() toggles the matching
            .tab-pane in BOTH Section 01 and Section 02 by data-persona, regardless of there being only
            one bar. Inject directly, no extra wrapper. -->
-      {{PERSONA_TAB_BAR_HTML}}
+      <div style="margin-bottom: 40px">{{PERSONA_TAB_BAR_HTML}}</div>
       <!--
     Structure to emit — one .tab-btn per persona in the resolved roster, first one starts with class
     "active":
@@ -1023,7 +1092,6 @@
   -->
 
       <!-- ─── Persona ─── -->
-      <hr class="section-divider" />
       <div style="margin-bottom: 32px">
         <div class="section-head">
           <span class="section-num">01</span>
@@ -1102,9 +1170,9 @@
           </div>
           <div class="dossier-block">
             <div class="dossier-label">Day in the Life</div>
-            <p class="dossier-day">120–250 word narrative in Bahasa Indonesia, in character, grounded in the cited evidence above — not invented.</p>
+            <p class="dossier-day">120–250 word narrative in English, in character, grounded in the cited evidence above — not invented.</p>
           </div>
-          <div class="dossier-sources">Sumber: nps:1234, lib:cdp/customer-segmentation/ut-2026-01-30/README.md</div>
+          <div class="dossier-sources">Sources: nps:1234, lib:cdp/customer-segmentation/ut-2026-01-30/README.md</div>
         </div>
       </div>
     </div>
@@ -1119,7 +1187,6 @@
           <span class="section-num">02</span>
           <h2 class="section-title">Walkthrough &amp; AI UT Simulation</h2>
         </div>
-        <div class="callout info" style="margin-bottom: 14px">{{AI_UT_INSIGHT}}</div>
         <!-- NOTE: {{AI_UT_TABS_HTML}} = one .tab-pane per persona, NARRATIVE ONLY (task/quote/
              completion) — no state-cards here, those go in {{WALKTHROUGH_STATES_HTML}} below and
              may or may not be per-persona (see its own note). Same shared tab bar above (Section 01)
@@ -1133,11 +1200,11 @@
         <div class="persona-body">
           <div class="persona-task">Task: What they are trying to do in THIS review</div>
           <div class="persona-find">What they found / experienced</div>
-          <div class="persona-quote">"Their quote in bahasa Indonesia"</div>
+          <div class="persona-quote">"Their quote in English"</div>
           <div class="persona-status">
-            <span class="status-badge status-ok">&#10003; Berhasil</span>
+            <span class="status-badge status-ok">&#10003; Succeeded</span>
             OR
-            <span class="status-badge status-warn">&#9888; Kesulitan</span>
+            <span class="status-badge status-warn">&#9888; Succeeded with difficulty</span>
           </div>
         </div>
       </div>
@@ -1168,13 +1235,13 @@
     SHARED shape (default) — flat, no tab-pane wrapper, one state-card per state with a Minor+
     finding, Passed states get no card:
 
-    <div class="state-card">
+    <div class="state-card" data-el="persona-slug-1,persona-slug-2">
       <div class="state-head">
         <span class="state-idx">STATE / 01</span>
         <h3 class="state-name">Initial</h3>
       </div>
       <div class="screenshot-row">
-        <img class="shot-thumb" src="data:image/png;base64,BASE64_HERE" alt="..." onclick="expandShot(this)" title="Klik untuk perbesar">
+        <img class="shot-thumb" src="data:image/png;base64,BASE64_HERE" alt="..." onclick="expandShot(this)" title="Click to enlarge">
         <div class="shot-note">Brief description of the state — what US it covers, key context. <strong>Apa yang terlihat:</strong> Description of what's visible in the screenshot.</div>
       </div>
       <div class="findings-grid">
@@ -1185,8 +1252,9 @@
           <div class="finding-item" id="fN">
             <div class="finding-bar SEVERITY"></div>
             <div class="finding-content">
-              <div class="finding-tag SEVERITY">Major|Minor|Passed</div>
+              <div class="finding-tag SEVERITY">Critical|Major|Minor|Cosmetic|Passed</div>
               <div class="finding-fw">FRAMEWORK · Principle</div>
+              <span class="type-tag">Wayfinding|Functionality|Design &amp; Labeling|Context understanding</span>
               <div class="finding-text">Short title of the finding</div>
               <div class="finding-desc">Detailed explanation of the issue and its impact.</div>
               <div class="finding-personas">
@@ -1195,10 +1263,10 @@
               </div>
               <div class="decision-sel">
                 <button class="sel-opt" data-action="ai" data-prompt="PROMPT_TEXT" onclick="selectDecision(this,'fN')">Fix by AI</button>
-                <button class="sel-opt" data-action="ignore" onclick="selectDecision(this,'fN')">Abaikan</button>
-                <button class="sel-opt" data-action="discuss" onclick="selectDecision(this,'fN')">Diskusi</button>
+                <button class="sel-opt" data-action="ignore" onclick="selectDecision(this,'fN')">Dismiss</button>
+                <button class="sel-opt" data-action="discuss" onclick="selectDecision(this,'fN')">Discuss</button>
               </div>
-              <div class="disc-note-area"><textarea placeholder="Tambahkan catatan..."></textarea></div>
+              <div class="disc-note-area"><textarea placeholder="Add a note..."></textarea></div>
             </div>
           </div>
         </div>
@@ -1224,6 +1292,27 @@
           <h2 class="section-title">{{CROSSFLOW_TITLE}}</h2>
         </div>
         <p class="section-sub">{{CROSSFLOW_ANALYSIS_HTML}}</p>
+        <div class="type-summary" id="type-summary"></div>
+
+        <!-- Key takeaways: 3-4 themes grouping the findings, as plain bullets (no numbering), same
+             <ul><li> style as the blocks below. Per theme:
+             <ul><li><strong>Theme</strong> — what users struggled with. <strong>Expected outcome:</strong> ...</li></ul> -->
+        <div class="sub-block">
+          <h3 class="sub-block-title">Key takeaways</h3>
+          {{TAKEAWAYS_HTML}}
+        </div>
+
+        <!-- What went well: what worked, as <ul><li> -->
+        <div class="sub-block">
+          <h3 class="sub-block-title">What went well</h3>
+          {{POSITIVES_HTML}}
+        </div>
+
+        <!-- New needs: new needs/ideas surfaced by personas. NOT usability issues, never scored. <ul><li> -->
+        <div class="sub-block">
+          <h3 class="sub-block-title">New needs (not scored)</h3>
+          {{NEEDS_HTML}}
+        </div>
       </div>
 
       <!-- ─── PRD Gap Analysis ─── -->
@@ -1234,20 +1323,19 @@
           <h2 class="section-title">PRD Gap Analysis</h2>
         </div>
         <p class="section-sub">
-          Setiap user story dari PRD dikaji satu per satu terhadap apa yang berhasil di-capture
-          Playwright. <strong>✅ Implemented</strong> berarti screen/state tersedia dan sesuai spec;
-          <strong>⚠️ Partial</strong> berarti elemen ada tapi belum lengkap;
-          <strong>❌ Not found</strong> berarti tidak ada representasinya di prototype yang
-          berjalan.
+          Each user story from the PRD is checked one by one against what Playwright captured.
+          <strong>✅ Implemented</strong> means the screen/state exists and matches the spec;
+          <strong>⚠️ Partial</strong> means the element exists but is incomplete;
+          <strong>❌ Not found</strong> means the running prototype has no representation of it.
         </p>
         <div class="gap-table-wrap">
           <table class="gap-table">
             <thead>
               <tr>
                 <th style="width: 72px">US</th>
-                <th>Judul / Deskripsi</th>
+                <th>Title / Description</th>
                 <th style="width: 130px">Status</th>
-                <th>Catatan</th>
+                <th>Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -1281,19 +1369,27 @@
 
     <script>
       // fd: finding data — populated by Claude when generating the report.
-      // Format: { fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical|Major|Minor' } }
+      // Format: { fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical|Major|Minor|Cosmetic',
+      //                 ty:'Wayfinding|Functionality|Design & Labeling|Context understanding', p:['persona-slug'],
+      //                 el:['persona-slug', ...] /* personas whose role can reach this surface; omit = whole roster */ } }
       const fd = {{FD_JSON}};
+
+      // tasks: AI UT task outcome per persona — { 'persona-slug': 'ok' | 'difficulty' | 'fail' }.
+      // Empty object when there is no roster. Its size is the roster size, the frequency denominator when a
+      // finding has no `el`.
+      const tasks = {{TASKS_JSON}};
 
       const CHOICE_PRINCIPLES = ['Clear', 'Holistic', 'Open', 'Individual', 'Contextual', 'Emotional'];
       const NNG_HEURISTICS = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9', 'H10'];
+      const TYPES = ['Wayfinding', 'Functionality', 'Design & Labeling', 'Context understanding'];
 
-      // Deduction per finding, by severity — calibrated so a Critical/Major/Minor finding costs the
-      // same ~4 Overall points regardless of framework. NNG sums 10 heuristics directly into
-      // Overall*0.4 (no averaging); CHOICE averages 6 principles into Overall*0.6 — so 1 NNG point is
-      // worth 4x the Overall weight of 1 CHOICE point, hence CHOICE's deductions are 4x NNG's.
+      // Deduction per finding, by severity (Nielsen 1-4 scale: Cosmetic=1, Minor=2, Major=3, Critical=4).
+      // CHOICE principles start at 100 and NNG heuristics at 10, hence CHOICE's deductions are 4x NNG's; the NNG
+      // average is scaled x10 so both frameworks end on a 0-100 scale. Only principles / heuristics with an
+      // active finding are averaged (see computeScores).
       const DEDUCTION = {
-        CHOICE: { Critical: 40, Major: 20, Minor: 8 },
-        NNG: { Critical: 10, Major: 5, Minor: 2 }
+        CHOICE: { Critical: 40, Major: 20, Minor: 8, Cosmetic: 2 },
+        NNG: { Critical: 10, Major: 5, Minor: 2, Cosmetic: 0.5 }
       };
 
       function bandFor(score) {
@@ -1303,8 +1399,26 @@
         return { band: 'not-ready', badge: '🔴 Not Ready', text: 'Not Ready' };
       }
 
-      // Pure function of (severity, principle/heuristic) pairs from active (non-dismissed) findings —
-      // no separately-authored baseline. Runs identically on page load and after every decision change.
+      function isActive(id) {
+        const active = document.querySelector('#' + id + ' .sel-opt.active');
+        return active?.dataset.action !== 'ignore';
+      }
+
+      // Frequency multiplier: 0.5 + 0.5 * (personas affected / personas who can reach the surface).
+      // The denominator is the finding's `el` (eligible personas: those whose role has access to the
+      // screen the finding is on), falling back to the whole roster when `el` is omitted — so a
+      // Settings finding that both Settings-capable personas hit counts in full even when staff
+      // personas can never open Settings. Per-persona sub-scores pass personaFilter, where that
+      // persona is by definition the whole audience (multiplier 1).
+      function frequencyFactor(f, personaFilter) {
+        const total = (f.el && f.el.length) || Object.keys(tasks).length;
+        if (personaFilter || !total || !(f.p || []).length) return 1;
+        return 0.5 + 0.5 * Math.min(1, f.p.length / total);
+      }
+
+      // Pure function of (severity, principle/heuristic, persona-frequency) from active (non-dismissed)
+      // findings — no separately-authored baseline. Runs identically on
+      // page load and after every decision change.
       // personaFilter (optional): when given, only sums findings whose `p` array includes that persona
       // slug, and writes the result into that persona's own tab-mini-score element instead of the
       // global stat strip — used to give each persona tab its own CHOICE/NNG sub-score alongside the
@@ -1312,23 +1426,32 @@
       function computeScores(personaFilter) {
         const principle = Object.fromEntries(CHOICE_PRINCIPLES.map((p) => [p, 100]));
         const heuristic = Object.fromEntries(NNG_HEURISTICS.map((h) => [h, 10]));
+        const touchedPrinciples = new Set();
+        const touchedHeuristics = new Set();
 
         for (const [id, f] of Object.entries(fd)) {
           if (personaFilter && !(f.p || []).includes(personaFilter)) continue;
-          const active = document.querySelector('#' + id + ' .sel-opt.active');
-          if (active?.dataset.action === 'ignore') continue;
+          if (!isActive(id)) continue;
           const [fw, key] = f.fw.split('·').map((s) => s.trim());
           const table = DEDUCTION[fw.toUpperCase()];
-          const points = table?.[f.sv];
-          if (!points) continue;
-          if (fw.toUpperCase() === 'CHOICE' && key in principle) principle[key] -= points;
-          else if (fw.toUpperCase() === 'NNG' && key in heuristic) heuristic[key] -= points;
+          const base = table?.[f.sv];
+          if (!base) continue;
+          const points = base * frequencyFactor(f, personaFilter);
+          if (fw.toUpperCase() === 'CHOICE' && key in principle) {
+            principle[key] -= points;
+            touchedPrinciples.add(key);
+          } else if (fw.toUpperCase() === 'NNG' && key in heuristic) {
+            heuristic[key] -= points;
+            touchedHeuristics.add(key);
+          }
         }
-        for (const k in principle) principle[k] = Math.max(0, principle[k]);
-        for (const k in heuristic) heuristic[k] = Math.max(0, heuristic[k]);
 
-        const choice = Math.round(CHOICE_PRINCIPLES.reduce((s, p) => s + principle[p], 0) / 6);
-        const nng = NNG_HEURISTICS.reduce((s, h) => s + heuristic[h], 0);
+        // Only the principles / heuristics that carry at least one active finding are averaged, so an
+        // untouched principle never dilutes a real finding. No findings on a framework → that framework is 100.
+        const avg = (scores, keys, scale) =>
+          keys.size ? Math.round((scale * [...keys].reduce((s, k) => s + Math.max(0, scores[k]), 0)) / keys.size) : 100;
+        const choice = avg(principle, touchedPrinciples, 1);
+        const nng = avg(heuristic, touchedHeuristics, 10);
         const overall = Math.round(choice * 0.6 + nng * 0.4);
         const { band, badge, text } = bandFor(overall);
 
@@ -1347,8 +1470,23 @@
         return { overall, choice, nng, verdictText: text };
       }
 
+      // Counts of active findings per issue type (Wayfinding / Functionality / ...). Informational only —
+      // the type tag never changes any score.
+      function renderTypeSummary() {
+        const el = document.getElementById('type-summary');
+        if (!el) return;
+        const counts = Object.fromEntries(TYPES.map((t) => [t, 0]));
+        for (const [id, f] of Object.entries(fd)) {
+          if (f.ty in counts && isActive(id)) counts[f.ty]++;
+        }
+        el.innerHTML = TYPES.filter((t) => counts[t])
+          .map((t) => '<span class="coverage-chip">' + t.replace('&', '&amp;') + ' · ' + counts[t] + '</span>')
+          .join('');
+      }
+
       function refreshAllScores() {
         computeScores(); // global Overall/CHOICE/NNG — same function, same math, nothing LLM-authored
+        renderTypeSummary();
         // Section 01 (Persona) and Section 02 (Walkthrough & AI UT Simulation) each render one
         // .tab-pane per persona sharing the same data-persona slug, so dedupe before recomputing —
         // otherwise the same persona's score gets computed twice for no reason.
@@ -1362,6 +1500,17 @@
       }
 
       refreshAllScores(); // initial render
+      filterStatesByAccess(document.querySelector('.tab-btn.active')?.dataset.persona);
+
+      // Shared-run state cards list every screen that was explored. A card carrying data-el (comma-separated
+      // persona slugs whose role can reach that screen) is hidden for every other persona's tab, so a staff
+      // persona never sees Settings screens it has no access to. Cards without data-el show for everyone.
+      function filterStatesByAccess(slug) {
+        document.querySelectorAll('.state-card[data-el]').forEach((c) => {
+          const el = c.dataset.el.split(',').filter(Boolean);
+          c.style.display = el.length && !el.includes(slug) ? 'none' : '';
+        });
+      }
 
       function switchPersonaTab(slug) {
         // Two independent tab bars (Section 01 and Section 02) share the same data-persona slugs —
@@ -1370,6 +1519,7 @@
         document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
         document.querySelectorAll('.tab-btn[data-persona="' + slug + '"]').forEach((b) => b.classList.add('active'));
         document.querySelectorAll('.tab-pane[data-persona="' + slug + '"]').forEach((p) => p.classList.add('active'));
+        filterStatesByAccess(slug);
       }
 
       function selectDecision(btn, id) {
@@ -1402,8 +1552,8 @@
         const lines = [
           '# {{TITLE}}',
           '',
-          '> File ini adalah export keputusan design review. Attach ke sesi Claude Code untuk menindaklanjuti.',
-          '> Tiap finding sudah diberi keputusan: **Fix**, **Diskusi**, atau **Abaikan**.',
+          '> This file is the exported decisions of a design review. Attach it to a Claude Code session to act on it.',
+          '> Each finding has a decision: **Fix**, **Discuss**, or **Dismiss**.',
           '',
           `**Overall: ${live.overall}/100 — ${live.verdictText}**`,
           '',
@@ -1416,34 +1566,34 @@
         ];
 
         if (groups.ai.length) {
-          lines.push('## ✅ Fix by AI', '', '_Finding berikut siap diperbaiki. Lakukan satu per satu._', '');
+          lines.push('## ✅ Fix by AI', '', '_These findings are ready to fix. Do them one at a time._', '');
           for (const f of groups.ai) {
             lines.push(`### ${f.d}`);
-            lines.push(`- **Screen:** ${f.sc} · **Framework:** ${f.fw} · **Severity:** ${f.sv}`);
-            lines.push(`- **Instruksi:** ${f.prompt}`);
-            if (f.note) lines.push(`- **Catatan:** ${f.note}`);
+            lines.push(`- **Screen:** ${f.sc} · **Framework:** ${f.fw} · **Severity:** ${f.sv}${f.ty ? ' · **Type:** ' + f.ty : ''}`);
+            lines.push(`- **Instruction:** ${f.prompt}`);
+            if (f.note) lines.push(`- **Note:** ${f.note}`);
             lines.push('');
           }
         }
 
         if (groups.discuss.length) {
-          lines.push('## 💬 Perlu Diskusi', '', '_Finding berikut butuh keputusan PM/designer sebelum dieksekusi._', '');
+          lines.push('## 💬 Needs discussion', '', '_These findings need a PM/designer decision before they are acted on._', '');
           for (const f of groups.discuss) {
             lines.push(`### ${f.d}`);
-            lines.push(`- **Screen:** ${f.sc} · **Framework:** ${f.fw} · **Severity:** ${f.sv}`);
-            if (f.note) lines.push(`- **Catatan:** ${f.note}`);
+            lines.push(`- **Screen:** ${f.sc} · **Framework:** ${f.fw} · **Severity:** ${f.sv}${f.ty ? ' · **Type:** ' + f.ty : ''}`);
+            if (f.note) lines.push(`- **Note:** ${f.note}`);
             lines.push('');
           }
         }
 
         if (groups.pending.length) {
-          lines.push('## ⏳ Belum Diputuskan', '');
+          lines.push('## ⏳ Undecided', '');
           for (const f of groups.pending) lines.push(`- ${f.d} (${f.fw} · ${f.sv})`);
           lines.push('');
         }
 
         if (groups.ignored.length) {
-          lines.push('## 🚫 Diabaikan', '');
+          lines.push('## 🚫 Dismissed', '');
           for (const f of groups.ignored) lines.push(`- ~~${f.d}~~ (${f.fw} · ${f.sv})`);
           lines.push('');
         }
