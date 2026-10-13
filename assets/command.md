@@ -5,25 +5,23 @@ description: Design review — Playwright exploration + CHOICE+NNG-weighted UX a
 Run a full design review on the prototype. $ARGUMENTS
 
 **Never use `mcp__claude-in-chrome__*` tools to explore or interact with the PROTOTYPE.** All
-exploration and interaction there must go through `node_modules/pixel-review/src/driver.js`
-(Playwright, headless) via `flow.json` triggers — including `type:` and `select-text:` for text fields
-and custom dropdowns. If a state seems impossible to reach with the trigger DSL, extend the DSL in
-`node_modules/pixel-review/src/driver.js` rather than falling back to manual browser control; manual
-browser screenshots are far more expensive in context than the script's `result.json` output. This
-restriction is about the prototype only — reading a PRD doc is a separate concern with its own fallback
-in "Fetch PRD requirements" below.
+exploration and interaction there must go through `node_modules/pixel-review/src/driver.js` (Playwright, headless) via
+`flow.json` triggers — including `type:` and `select-text:` for text fields and custom dropdowns. If a
+state seems impossible to reach with the trigger DSL, extend the DSL in `node_modules/pixel-review/src/driver.js`
+rather than falling back to manual browser control; manual browser screenshots are far more expensive
+in context than the script's `result.json` output. This restriction is about the prototype only —
+reading a PRD doc is a separate concern with its own fallback in "Fetch PRD requirements" below.
 
 ## Pre-flight checks
 
-**Step 1 — verify the driver exists:**
+**Step 1 — verify the script exists:**
 
 ```bash
 test -f node_modules/pixel-review/src/driver.js && echo "OK" || echo "MISSING"
 ```
 
-If MISSING: tell the user to install the package (`pnpm add -D pixel-review` / `npm install -D
-pixel-review` / `yarn add -D pixel-review`, matching whichever lockfile the repo already uses), then
-run `/pixel-review` again. Do not proceed.
+If MISSING: tell the user the file should be committed to the repo. If they just cloned, ask them to
+check their git pull. Do not proceed.
 
 **Step 2 — verify the Chromium browser binary is installed:**
 
@@ -84,9 +82,9 @@ already gave you:
      e.g. `"create ticket flow https://prototype.example.com/tickets https://docs.google.com/document/d/xyz"`.
    - Non-URL text is the flow/feature instruction, e.g. `"create ticket flow"` in the example above.
    - **If a URL doesn't clearly match any pattern above**, don't silently drop it or silently guess —
-     state your best-guess classification in the confirmation line (step "Determine review mode"
-     below) so the user can correct it before anything expensive runs, rather than it quietly becoming
-     neither a PRD nor a prototype URL and falling through to BFS fallback mode by accident.
+     state your best-guess classification in the scope statement (step "Determine review mode"
+     below), then continue with it, rather than it quietly becoming
+     neither a PRD nor a prototype URL and quietly dropping out of the review scope.
 2. **The current conversation**, if `/pixel-review` is running in the same session as the "vibe
    coding" (implementing/iterating) work that came right before it — don't make the user restate
    context you already have from watching them build it:
@@ -96,59 +94,92 @@ already gave you:
      conversation (same classification rules as step 1 above).
    - **Prototype URL** — reuse a URL already established this session (e.g. from a `pnpm dev` run,
      or a route already navigated to together).
-3. **Ask the user** — only for whatever steps 1–2 didn't supply:
+3. **The branch's own work**, when the conversation has no vibe-coding context (a fresh session, or
+   `/pixel-review` run later) — summarize the goal from what the branch changed instead of asking
+   from a blank slate:
+
+   ```bash
+   git rev-parse --abbrev-ref HEAD
+   git log --oneline main..HEAD
+   git diff --stat main...HEAD
+   ```
+
+   - Read the branch name (`feat/PXL-1234-create-automation` → "create automation"), the commit
+     subjects, and which routes/pages/screens the diff touches (adjust the paths above to your
+     framework's routing convention, e.g. `app/pages`, `src/routes`, `pages/`). Map touched pages to
+     routes, and the feature to one user goal phrased as a task a persona would attempt (e.g. "create
+     a new automation and check the existing ones").
+   - If the diff touches several unrelated features, or a doc file exists under the touched feature's
+     own directory, read it for the intended behavior and pick the main goal from it; if it is still
+     ambiguous, pick the goal covering the most changed files and say which one you picked and which
+     you left out — do not stop to ask.
+   - Never invent a route you cannot map to a changed page. State the derived goal in the scope
+     statement (see below) so it is visible, never silently assumed — but do not wait on it.
+
+4. **Ask the user** — only for whatever steps 1–3 didn't supply:
    - **Prototype URL** — default `http://localhost:3000` (accept a subpath like `/customers`).
    - **PRD URL** _(optional)_ — Confluence, Coda/Superhuman, or any web URL with feature requirements.
      Tell the user: "PRD URL is optional — skip it and PRD Coverage will be excluded from the score."
-   - **Flow/feature to focus on** _(optional, only ask if PRD URL was skipped)_ — tell the user: "You
-     can name a specific flow or feature (e.g. 'create ticket flow') to keep the review focused, or
-     leave this blank to let me explore the whole app."
+   - **Flow/feature goal** _(required when PRD URL was skipped)_ — ask: "What flow or goal should I
+     review (e.g. 'create ticket flow', 'a supervisor checks which automations are active')?" A
+     review needs a goal: personas can only succeed or struggle at a task, so without a goal there is
+     nothing to simulate. There is no whole-app crawl mode — do not proceed until the user gives a flow/goal or a PRD.
 
-If steps 1–2 already cover everything, **state what you inferred in one line** instead of opening with
-a question — e.g. "Review scope: create ticket flow at `/tickets/all-tickets`, no PRD." The user
-corrects you if it's wrong; they shouldn't have to answer from a blank slate when you already watched
-them build the thing. Only fall through to asking (step 3) when the scope is genuinely ambiguous — a
-fresh session with no prior context, or a vibe-coding session that touched several unrelated features.
+If steps 1–3 already cover everything, **state what you inferred in one line** instead of opening with
+a question — e.g. "Review scope: create ticket flow at `/tickets/all-tickets`, no PRD." Don't make the
+user answer from a blank slate when you already watched them build the thing. Only fall through to
+asking (step 4) when no goal can be derived at all — no PRD/doc, no usable conversation, and no branch
+diff — because then there is nothing to run.
 
 If the user skips PRD URL, set `prd_skipped = true`.
 
-4. **Resolve the persona roster** — determines who drives exploration below AND who Framework 4
-   narrates. Resolve in order, stop at the first source that supplies a roster, but always still check
-   for supplementing (e) if the roster is short of the target participant count:
+5. **Resolve the persona roster** — determines who drives exploration below AND who Framework 4
+   narrates. Resolve in order, stop at the first source that supplies a roster. **A roster that comes
+   from a shared PRD/research-plan document (a) or from the user (b) is used as-is — never validated,
+   replaced, or re-cast against the MCP User Synthetic library (c)/(d)/(e) just because the tool is
+   available.** The document is the source of truth for the personas it names. Next to a document
+   roster, the MCP's only role is to **fill the shortfall** when the roster has fewer personas than the
+   target count (see "Target participant count" below) — it never touches the doc's own personas. When
+   no document or user input supplies a roster at all, the MCP is the fallback for the whole roster:
 
-   a. **PRD's own persona table** — if PRD mode is active and the fetched PRD has a persona/target-users
-      section (heading wording varies — "Target Users", "Persona", "Target Audience", etc. — match
-      loosely on a table naming a Persona/Role + Goal/Pain, don't require exact wording). Rows are
-      often labeled Primary/Secondary: Primary is mandatory and runs first; Secondary is included by
-      default but is the first candidate to trim under time/participant constraints.
+   a. **PRD's or research plan's own persona / target-user section** — if PRD mode is active and the
+   fetched doc has a persona/target-users section (heading wording varies — "Target Users", "Persona",
+   "Target Audience", "Respondent Criteria", etc. — match loosely on a table or list naming a
+   Persona/Role, with or without Goal/Pain, don't require exact wording or a formal persona table). A
+   research plan that only lists respondent roles/teams counts: each listed role is a persona, with
+   Goal/Pain taken only from what the doc actually says (e.g. its Background) — never invented. Rows are
+   often labeled Primary/Secondary: Primary is mandatory and runs first; Secondary is included by
+   default but is the first candidate to trim under time/participant constraints.
    b. **User explicit override** — anything the user names in `$ARGUMENTS` or conversation overrides or
-      adds to (a).
+   adds to (a).
    c. **MCP curated persona library** (only if `mcp__claude_ai_User_syntethics__*` tools are available
-      in this session) — before casting anything new, check for an existing match:
-      `search_research(domain="personas", query=<feature/module name>)` or
-      `list_research_docs(domain="personas")`, specifically:
-      - `personas/qontak-module-personas/desk-2026-07-29/findings.md` (feature-level archetypes)
-      - `personas/qontak-user-personas/desk-2026-07-28/findings.md` (product-wide tiered set)
-      If the module under review already has an archetype here, `get_research_doc` it and use directly
-      — reuse for consistency across repeated reviews of the same module, don't recast.
-   d. **Prior UT/concept-test research on the SAME feature (enrichment only, never a roster source)** —
-      if the MCP is available, `search_research(domain=<matching PRD domain>, method="ut"|"concept")`.
-      If found, `get_research_doc` it and use it to ground persona behavior/wording and which states to
-      specifically re-probe (known friction points) — applies to whichever roster (a)/(b)/(c)/(e)
-      supplied, never adds/removes roster members on its own.
-   e. **Cast new via MCP `synthetic_get_evidence`** — only when (a)-(c) produced nothing, or the roster
-      is short of the target participant count and needs ADDITIONAL distinct personas (never replacing
-      a/b/c). Mandatory: call `synthetic_start_study` first — it returns a protocol requiring an
-      explicit STUDY BRIEF approval before `synthetic_get_evidence` can run; this is a hard tool-side
-      gate, never skip or paraphrase around it. If the roster's shortfall is already known at the
-      "Confirm before proceeding" step below, fold the STUDY BRIEF preview into that same confirmation
-      instead of stopping twice; if the shortfall only becomes apparent later, let this stand as a
-      second, separate stop. Ground the cast with `list_modules` once, then `get_module_records` on
-      `nps` / `feature-requests` / `won-deals` / `loss-deals` / `pms` for real role/industry/tenure/
-      pain/adoption numbers. Use `synthetic_read_source` before grounding claims on any `lib:`-cited
-      source in the evidence pack (previews only by default).
-   f. **Fallback — the 5 generic personas** (see Framework 4) — only when (a)-(e) all produced nothing
-      (no PRD table, no user input, MCP unavailable or declined).
+   in this session) — before casting anything new, check for an existing match:
+   `search_research(domain="personas", query=<feature/module name>)` or
+   `list_research_docs(domain="personas")`, specifically:
+   - `personas/qontak-module-personas/desk-2026-07-29/findings.md` (feature-level archetypes)
+   - `personas/qontak-user-personas/desk-2026-07-28/findings.md` (product-wide tiered set)
+     If the module under review already has an archetype here, `get_research_doc` it and use directly
+     — reuse for consistency across repeated reviews of the same module, don't recast.
+     d. **Prior UT/concept-test research on the SAME feature (enrichment only, never a roster source)** —
+     if the MCP is available **and the roster did not come from a shared doc or the user (a/b)** —
+     skipped otherwise, same rule as above — `search_research(domain=<matching PRD domain>, method="ut"|"concept")`.
+     If found, `get_research_doc` it and use it to ground persona behavior/wording and which states to
+     specifically re-probe (known friction points) — applies to whichever roster (a)/(b)/(c)/(e)
+     supplied, never adds/removes roster members on its own.
+     e. **Cast new via MCP `synthetic_get_evidence`** — the last resort: only when (a)-(c) produced
+     nothing, or the roster is still short of the target participant count **after the library (c) was
+     searched for the shortfall and could not cover it** (see "Target participant count" below), and
+     then only for the personas still missing (never replacing a/b/c). Mandatory: call `synthetic_start_study` first — it returns a protocol requiring an
+     explicit STUDY BRIEF approval before `synthetic_get_evidence` can run; this is a hard tool-side
+     gate, never skip or paraphrase around it. If the roster's shortfall is already known at the
+     "Confirm before proceeding" step below, fold the STUDY BRIEF preview into that same confirmation
+     instead of stopping twice; if the shortfall only becomes apparent later, let this stand as a
+     second, separate stop. Ground the cast with `list_modules` once, then `get_module_records` on
+     `nps` / `feature-requests` / `won-deals` / `loss-deals` / `pms` for real role/industry/tenure/
+     pain/adoption numbers. Use `synthetic_read_source` before grounding claims on any `lib:`-cited
+     source in the evidence pack (previews only by default).
+     f. **Fallback — the 5 generic personas** (see Framework 4) — only when (a)-(e) all produced nothing
+     (no PRD table, no user input, MCP unavailable or declined).
 
    If no MCP tools are available at all in this session, silently skip (c)/(d)/(e) — don't nag the user
    about a tool they don't have.
@@ -162,9 +193,34 @@ If the user skips PRD URL, set `prd_skipped = true`.
    from (a) the PRD table or (b) your own input have no dossier and use the plain persona-card format
    instead — don't invent a fake dossier for them.
 
-   **Target participant count** (relevant only if (e) may trigger): look for an explicit count in the
-   fetched PRD/research-plan text (e.g. "test with 5 users"). If absent, propose **3** as part of the
-   mode-confirmation step below — adjustable by the user before proceeding.
+   **Target participant count: at least 5.** Use the explicit count in the fetched PRD/research-plan
+   text (e.g. "test with 8 users") when it is higher than 5; otherwise the target is **5** (3 was too
+   few — the frequency multiplier needs a roster big enough to tell "one persona
+   struggled" from "most did"). If the roster is short of the target:
+   **Fill only the shortfall, library first, casting last** — whether the roster came from a shared
+   doc/user (a/b), from the MCP library (c), or not at all:
+   1. **From the curated library (c) — read-only, no approval gate.** `search_research(domain="personas",
+query=<feature/module and the missing role>)` / `list_research_docs(domain="personas")`, then
+      `get_research_doc` on each match. Take only archetypes **distinct from the roster already in hand**
+      (a role, team, industry, or seniority the doc's personas do not already cover) and plausible for
+      this study. Library personas keep their full dossier (`hasDossier: true`).
+   2. **Only if the library cannot cover the shortfall — cast via (e).** `synthetic_start_study` and an
+      approved STUDY BRIEF come first, a hard tool-side gate you never skip or paraphrase around. Cast
+      only the personas still missing after step 1, grounded in the doc's own dimensions (e.g. its
+      respondent industries). Fold the brief into the scope statement so it is one stop, not two.
+   - The doc's/user's own personas stay exactly as written (no dossier, `hasDossier: false`) — never
+     replaced, re-cast, or re-scored against the library.
+   - Say which personas came from the doc, which from the library, and which were cast, in the
+     scope statement and in each persona card, so the report never presents a library or synthetic
+     persona as the doc's.
+     State the final count in the scope statement.
+
+   **Role access (every persona has limits).** Give each persona an access scope — the surfaces its role
+   can reach — from the doc (an "Access" column or per-role note) or from the user. A staff-level role
+   often cannot open Settings; the prototype does not enforce that, so you must. If access is not stated,
+   assume **full access** and mark the Access line in the persona card as an assumption ("full access —
+   assumed, not stated in the document"). Show the access scope in each persona card. Personas only attempt tasks on surfaces they can reach, and
+   a persona is never tagged to a finding on a screen outside its access.
 
    **Persona slugs**: every resolved persona gets a slug for file paths — lowercase, non-alphanumeric
    runs collapsed to a single hyphen, trimmed (e.g. "Sales/CS Team Lead" → `sales-cs-team-lead`). Use
@@ -172,25 +228,30 @@ If the user skips PRD URL, set `prd_skipped = true`.
 
 **Determine review mode:**
 
-| Condition                                           | Mode                  |
-| --------------------------------------------------- | ---------------------- |
-| PRD URL given                                       | **PRD mode**           |
-| No PRD URL, but a flow/feature instruction is given | **Instruction mode**   |
-| Neither PRD URL nor flow/feature instruction given  | **BFS fallback mode**  |
+| Condition                                           | Mode                 |
+| --------------------------------------------------- | -------------------- |
+| PRD URL given                                       | **PRD mode**         |
+| No PRD URL, but a flow/feature instruction is given | **Instruction mode** |
 
-BFS fallback mode crawls the entire app's top-level navigation and produces a broad, shallow report —
-only use it when the user has given no scope at all. Prefer instruction mode whenever any flow or
-feature intent can be read from the request; don't default to BFS just because a PRD wasn't provided.
+There is no third mode. If neither a PRD URL nor a flow/feature goal can be resolved (from the
+message, then the conversation), stop and ask for the goal — never fall back to crawling the whole
+app. Read the goal from the request whenever you can; only ask when it is genuinely absent.
 
-Confirm before proceeding, stating which mode was selected, the resolved persona roster, AND whether
-exploration will be shared or escalated per-persona (see "Generate flow config" below), e.g.:
+**State the scope in one line, then continue immediately — this is a statement, not a checkpoint. Do
+not wait for a reply.** Give the mode selected (PRD or instruction), the goal, the resolved persona
+roster (marking which came from the doc, the library, or a cast), AND whether exploration is shared or
+escalated per-persona (see "Generate flow config" below), e.g.:
 
 > Review scope: create-segment flow. Personas: Sales/CS Team Lead (Primary, from PRD), Marketing/
-> Campaign Manager (Secondary, from PRD). Exploration: shared (1 Playwright pass) — say so now if you
-> want each persona to take a genuinely different path instead.
+> Campaign Manager (Secondary, from PRD). Exploration: shared (1 Playwright pass).
 
-If step 4e is already known to be needed at this point (roster short of the target participant count),
-append the STUDY BRIEF preview to this same message instead of stopping twice later.
+If the user interjects while the run is going, adapt; otherwise do not pause.
+
+Search the library for any shortfall **before** writing this line (read-only, no approval needed), so
+the line already names the library personas it will use. Only if the library cannot cover the shortfall
+is step 5e needed — then append the STUDY BRIEF preview to this same message instead of stopping twice
+later. **That STUDY BRIEF approval is the only planned stop in the whole run**; when the library
+covers the shortfall there is no stop at all.
 
 ---
 
@@ -220,7 +281,7 @@ Use this same final stem for `{{EXPORT_FILENAME}}` (`<stem>-pixel-review.md`) la
 
 ## Fetch PRD requirements
 
-**PRD mode only.** Skip this step for instruction mode and BFS fallback mode.
+**PRD mode only.** Skip this step for instruction mode.
 
 **Do this BEFORE running Playwright.** The PRD determines what Playwright visits.
 
@@ -255,8 +316,8 @@ PRDs fetched above). Keep a numbered list — you'll use this to:
 
 ## Generate flow config
 
-Skip this entire section only in **BFS fallback mode**. Both PRD mode and instruction mode produce a
-`flow.json` and run Playwright via `--flow-config` — never `--url` alone.
+Both PRD mode and instruction mode produce a `flow.json` and run Playwright via `--flow-config` —
+never `--url` alone.
 
 ```bash
 mkdir -p reports/.tmp-review/
@@ -269,14 +330,15 @@ perspective still comes through later (Framework 2/3 finding tags, Framework 4 n
 re-running the browser per persona.
 
 **Escalate to a separate `flow.json` per persona** only when one of these is true:
+
 - The user explicitly asks for divergent flows per persona (e.g. "coba lihat power user pakai jalur
   yang beda").
 - The PRD/roster itself implies genuinely different entry points per role (e.g. Primary reaches a
   feature through a main menu, Secondary through a completely different screen) — not just "might
   behave differently," an actual different route/starting point.
 
-State which case applies (shared or escalated) in the mode-confirmation line back in "Collect inputs"
-step 4, so the user can correct you before any Playwright run starts. When escalated, **enforce
+State which case applies (shared or escalated) in the scope statement back in "Determine review
+mode". When escalated, **enforce
 divergence**: if two personas would otherwise produce an identical `flow.json`, add at least one
 persona-specific state/step for one of them — the whole point of paying for N runs is that they
 genuinely differ.
@@ -293,9 +355,8 @@ From the user's flow/feature instruction (e.g. `"create ticket flow"`), work out
 
 1. Identify the most likely starting route from the given prototype URL (e.g. `/tickets/all-tickets`
    for a "create ticket flow").
-2. Run one lightweight discovery pass via `node_modules/pixel-review/src/driver.js` (never
-   `claude-in-chrome`) against that route before writing any triggers, so you know what's actually on
-   the page:
+2. Run one lightweight discovery pass via `node_modules/pixel-review/src/driver.js` (never `claude-in-chrome`) against
+   that route before writing any triggers, so you know what's actually on the page:
    ```bash
    node node_modules/pixel-review/src/driver.js --url <prototype-url> --routes <route> --out-dir reports/.tmp-review/
    ```
@@ -318,7 +379,7 @@ power-user persona jumps straight to the fastest path).
 Both modes write the completed JSON using the same format, trigger table, and mapping rules below —
 to `reports/.tmp-review/flow.json` when shared (the default), or to
 `reports/.tmp-review/<persona-slug>/flow.json` (one file per persona, using the slug from "Collect
-inputs" step 4) when escalated.
+inputs" step 5) when escalated.
 
 **Format:**
 
@@ -341,25 +402,26 @@ inputs" step 4) when escalated.
 
 **`trigger` format** — comma-separated steps executed in order before the screenshot:
 
-| Step                      | Action                                                                                                                                                                                                                      |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `null`                    | No interaction — just screenshot                                                                                                                                                                                            |
-| `click:<css-selector>`    | Click element by CSS selector                                                                                                                                                                                               |
-| `click-nth:<css-selector>\|<index>` | Click the `<index>`-th (0-based) match of a selector — for forms with several identical custom controls that share no unique id                                                                                 |
-| `click-text:<label>`      | Click a `button`/`a`/`[role=button]`/`.mp-button` by exact text content                                                                                                                                                     |
-| `select-text:<label>`     | Click a dropdown/autocomplete option row by exact text — broader match than `click-text` (also matches `li`, `[role=option]`, popover/list items), use for autocomplete/popover-list options that aren't real buttons; also matches multi-line rows (label + secondary text) by prefix |
-| `click-in:<container-selector>\|<label>` | Click by exact text, scoped to a container — use when the same label appears in more than one place (e.g. a closed popover that stays mounted off-screen) |
-| `check:<input-selector>`  | Check/toggle a radio or checkbox whose native input is visually hidden behind a styled span — clicks the associated `<label>`, falling back to a forced click on the input itself |
-| `type:<selector>\|<text>` | Click `<selector>` to focus it, then type `<text>` via real keystrokes (fires input/autocomplete listeners). Omit `<selector>\|` to type into whatever already has focus (chain right after a `click:`/`select-text:` step) |
-| `wait:<ms>`               | Wait N milliseconds                                                                                                                                                                                                         |
-| `scroll`                  | Scroll to page bottom — also scrolls the tallest inner scroll container, for app shells that pin the header/footer and leave the window itself nothing to scroll                                                          |
-| `scroll-top`              | Scroll back to top — also resets any scrolled inner containers                                                                                                                                                              |
-| `scroll-in:<css-selector>`| Scroll one named container to its bottom, for pages with several independent scroll panes where the generic `scroll` picks the wrong one                                                                                   |
-| `scroll-to-text:<label>`  | Scroll a section into view by its exact heading/text — use when a pixel offset or a selector would break across layout changes                                                                                             |
-| `key:<key>`               | Press keyboard key (e.g. `key:Escape`)                                                                                                                                                                                      |
-| `hover:<css-selector>`    | Hover over element                                                                                                                                                                                                          |
-| `hover-text:<label>`      | Hover a row by its exact visible text — use for cascading menus/submenus that open on `mouseenter` and have no stable selector                                                                                             |
-| `navigate:<path>`         | Navigate to a different path                                                                                                                                                                                                |
+| Step                                     | Action                                                                                                                                                                                                                      |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `null`                                   | No interaction — just screenshot                                                                                                                                                                                            |
+| `click:<css-selector>`                   | Click element by CSS selector                                                                                                                                                                                               |
+| `click-nth:<css-selector>\|<index>`      | Click the `<index>`-th (0-based) match of a selector — for forms with several identical custom controls that share no unique id                                                                                             |
+| `click-text:<label>`                     | Click a `button`/`a`/`[role=button]`/`.mp-button` by exact text content                                                                                                                                                     |
+| `select-text:<label>`                    | Click a dropdown/autocomplete option row by exact text — broader match than `click-text` (also matches `li`, `[role=option]`, popover/list items), use for MpAutocomplete/MpPopoverList options that aren't real buttons    |
+| `click-contains:<text>`                  | Click any element _containing_ the text — chat-list rows, table rows, cards. Broadest of the three; scrolls the match into view first, so a row below the fold screenshots correctly instead of looking like a no-op        |
+| `click-in:<container-selector>\|<label>` | Click by exact text, scoped to a container — use when the same label appears in more than one place (e.g. a closed popover that stays mounted off-screen)                                                                   |
+| `check:<input-selector>`                 | Check/toggle a custom radio/checkbox control whose native input is visually hidden behind a styled span — clicks the associated `<label>`, falling back to a forced click on the input itself                              |
+| `type:<selector>\|<text>`                | Click `<selector>` to focus it, then type `<text>` via real keystrokes (fires input/autocomplete listeners). Omit `<selector>\|` to type into whatever already has focus (chain right after a `click:`/`select-text:` step) |
+| `wait:<ms>`                              | Wait N milliseconds                                                                                                                                                                                                         |
+| `scroll`                                 | Scroll to page bottom — also scrolls the tallest inner scroll container, for app shells that pin the header/footer and leave the window itself nothing to scroll                                                            |
+| `scroll-top`                             | Scroll back to top — also resets any scrolled inner containers                                                                                                                                                              |
+| `scroll-in:<css-selector>`               | Scroll one named container to its bottom, for pages with several independent scroll panes where the generic `scroll` picks the wrong one                                                                                    |
+| `scroll-to-text:<label>`                 | Scroll a section into view by its exact heading/text — use when a pixel offset or a selector would break across layout changes                                                                                              |
+| `key:<key>`                              | Press keyboard key (e.g. `key:Escape`)                                                                                                                                                                                      |
+| `hover:<css-selector>`                   | Hover over element                                                                                                                                                                                                          |
+| `hover-text:<label>`                     | Hover a row by its exact visible text — use for cascading menus/submenus that open on `mouseenter` and have no stable selector                                                                                              |
+| `navigate:<path>`                        | Navigate to a different path                                                                                                                                                                                                |
 
 **Mapping rules:**
 
@@ -399,13 +461,13 @@ its own subdirectory so screenshots/results never collide:
 node node_modules/pixel-review/src/driver.js --url <prototype-url> --flow-config reports/.tmp-review/<persona-slug>/flow.json --out-dir reports/.tmp-review/<persona-slug>/
 ```
 
-**BFS fallback mode only** (no PRD, no flow instruction given), run in BFS discovery mode:
-
-```bash
-node node_modules/pixel-review/src/driver.js --url <prototype-url> --out-dir reports/.tmp-review/
-```
-
-The script uses Chrome with your existing session (copies profile to temp dir if Chrome is running).
+The script reuses a dedicated Playwright profile (`~/.cache/pixel-review/profile`, outside the repo), never
+your Chrome profile — that folder is blocked in sandboxed shells and holds cookies for every site you use.
+This repo's dev server skips Auth0 when `NUXT_PUBLIC_SKIP_AUTH_LOCAL=true` is in `.env`, so no sign-in is
+normally needed. If the script exits with "Not signed in", ask the user to run
+`node node_modules/pixel-review/src/driver.js --login --url <prototype-url>` once in their own terminal (a window opens;
+they sign in and close it) — never enter credentials for them. `--no-profile` gives a signed-out profile,
+and `--chrome-profile` restores the legacy copy-your-Chrome-profile behavior.
 After completion, read the output — `reports/.tmp-review/result.json` for the shared run, or each
 persona's `reports/.tmp-review/<persona-slug>/result.json` when escalated:
 
@@ -431,10 +493,22 @@ Coverage** and **AI UT Simulation** are still run and shown in the report, but i
 For each framework, produce a structured findings list internally:
 
 ```
-{ screen, state, principle, severity, description, has_screenshot: true/false }
+{ screen, state, principle, severity, type, description, has_screenshot: true/false }
 ```
 
-Severity: Critical | Major | Minor | Passed
+Severity (Nielsen 1–4, impact + persistence only — never fold how many personas hit it into severity,
+the report applies a frequency multiplier from the `p` array): Critical (4, blocks the task) | Major (3) |
+Minor (2) | Cosmetic (1, visual only) | Passed
+
+**Primary-task friction is Major.** If a persona must hunt for a control to do their _main_ task (e.g. the
+edit action is hidden in a menu), or information they need to decide at that moment is hidden or ambiguous
+(e.g. a boundary value that could belong to two tiers), rate it Major, not Minor. A secondary aid that is
+merely inconvenient (scroll back, re-read) stays Minor. Judge against the persona's main task, not the page.
+
+`type` is exactly one of `Wayfinding`, `Functionality`, `Design & Labeling`, `Context understanding`
+(see `node_modules/pixel-review/assets/principles.md` `## Issue Types`). It groups findings in the report and carries
+no weight. A new need or idea a persona voices is **not a finding** — collect it for the "New needs (not scored)"
+list instead, never tagged or scored.
 
 `principle` must be exactly one of the 6 CHOICE principle names or 10 NNG heuristic codes — no other
 spelling, since the report's JS keys its scoring off this exact string:
@@ -442,14 +516,26 @@ spelling, since the report's JS keys its scoring off this exact string:
 - CHOICE: `Clear`, `Holistic`, `Open`, `Individual`, `Contextual`, `Emotional`
 - NNG: `H1`, `H2`, `H3`, `H4`, `H5`, `H6`, `H7`, `H8`, `H9`, `H10`
 
+**Copy findings take one extra segment.** If the finding is about on-screen text — a label, button,
+heading, blank slate, error message, toast, or tooltip — append exactly one copy category after the
+principle, using `node_modules/pixel-review/assets/principles.md` `## Copy Categories`:
+
+`NNG · H4 · consistent`
+
+Only these four exist: `clarity`, `consistent`, `concise`, `grammar & typo`. Never invent a fifth, never
+chain two, and never write a category without a CHOICE/NNG segment in front of it. The category adds no
+weight and no deduction — the report's scoring JS destructures only the first two segments, so the third
+is inert and Overall is identical with or without it. Non-copy findings (layout, spacing, flow, state
+handling) get no category at all.
+
 You do **not** compute a numeric CHOICE, NNG, Overall, or verdict score anywhere — the report's
 JavaScript computes all of them from the findings you tag (severity + principle), both on page load
-and live whenever a finding is marked "Abaikan" in the browser. See "Scoring" below for the exact
+and live whenever a finding is marked "Dismiss" in the browser. See "Scoring" below for the exact
 mechanism, and never state a specific score number in `{{HEADLINE}}`/`{{SUBTITLE_HTML}}` or any other
 prose — you don't know what the client-side computation will render; describe findings qualitatively
 instead.
 
-Screenshot a state only when a finding of Minor severity or above is identified. Passed states → no
+Screenshot a state only when a finding of Minor severity or above is identified (a state whose only findings are Cosmetic still gets a state card so the finding can be decided on, but with no screenshot-row). Passed states → no
 screenshot in the report.
 
 ---
@@ -471,7 +557,7 @@ Produce a gap table — every US listed, no exceptions. This is the primary deli
 
 Score: (✅ count + 0.5 × ⚠️ count) / total US × 100, rounded to nearest integer.
 
-The gap table rows (only `<tr>` elements, no wrappers) go into `{{PRD_GAP_ROWS_HTML}}`. Section 04 structure is already in the template. If PRD is skipped, inject a single colspan row with "PRD tidak disertakan".
+The gap table rows (only `<tr>` elements, no wrappers) go into `{{PRD_GAP_ROWS_HTML}}`. Section 04 structure is already in the template. If PRD is skipped, inject a single colspan row with "PRD not provided".
 
 ---
 
@@ -485,6 +571,7 @@ finding recorded here needs a severity, since the score comes entirely from the 
 (see "Scoring" below).
 
 **Persona tagging (`p` array on each finding, if there's a roster):**
+
 - **Shared run (default)** — one exploration, judged through each persona's own lens. A finding isn't
   automatically relevant to everyone: an unclear label might be Major for a new employee and simply
   not register for a power user. Tag only the persona(s) who would actually notice/care at the
@@ -503,10 +590,9 @@ Use inline reference format: `CHOICE · Clear`
 
 ### Framework 3 — NNG Heuristics
 
-Evaluate all 10 heuristics from `node_modules/pixel-review/assets/principles.md`
-`## NNG 10 Usability Heuristics`. For each heuristic, check every screen — every finding recorded
-here needs a severity, since the score comes entirely from the findings you tag (see "Scoring"
-below).
+Evaluate all 10 heuristics from `node_modules/pixel-review/assets/principles.md` `## NNG 10 Usability Heuristics`.
+For each heuristic, check every screen — every finding recorded here needs a severity, since the
+score comes entirely from the findings you tag (see "Scoring" below).
 
 Tag `p` the same way as Framework 2 above — persona-lens judgment on the shared run by default, or
 per-run attribution when escalated.
@@ -517,7 +603,7 @@ Use inline reference format: `NNG · H4`
 
 ### Framework 4 — AI UT Simulation (informational — never factors into Overall)
 
-Simulate each persona in the roster resolved in "Collect inputs" step 4, each narrating the walkthrough
+Simulate each persona in the roster resolved in "Collect inputs" step 5, each narrating the walkthrough
 through **their own lens**. Base the narrative on their own `result.json` when escalated to per-persona
 flow.json, or on the one shared `result.json` interpreted through their goal/familiarity when running
 the shared/default flow — same screens, different read on what happened. This framework produces two
@@ -526,7 +612,7 @@ below) — don't blend them:
 
 **Identity** (who this persona is — goes in Section 01 "Persona", independent of this run):
 
-- If `hasDossier: true` (Collect inputs step 4, sources c/e): their **full User Synthetic dossier**
+- If `hasDossier: true` (Collect inputs step 5, sources c/e): their **full User Synthetic dossier**
   verbatim — role & work, behavior patterns, cited requests/pain points, day-in-the-life, citations.
   Do not compress this into a shorter summary; render it in the report exactly as `pack.render.dossier`
   produced it.
@@ -537,14 +623,18 @@ below) — don't blend them:
 "Walkthrough & AI UT Simulation", specific to this run):
 
 - Primary task they'd attempt, informed by their goal and — if prior UT/concept-test research on this
-  feature was found (Collect inputs step 4d) — specifically re-probing any known friction points
+  feature was found (Collect inputs step 5d) — specifically re-probing any known friction points
   rather than only a generic happy path
 - Findings from their perspective — the ones tagged to them in `p` (Framework 2/3), from the shared run
   or their own escalated run
 - A simulated quote (first-person, realistic)
-- Task completion: **Berhasil** / **Berhasil dengan kesulitan** / **Gagal**
+- Task completion: **Succeeded** / **Succeeded with difficulty** / **Failed** — this is no longer purely
+  shown in the report and used as the roster size for the frequency denominator, but it never changes a score.
+  Be honest and consistent: a persona whose tagged findings made them stop, search, or backtrack is
+  **Succeeded with difficulty**, not **Succeeded**. Also list any **new needs** the persona voices
+  (separate from issues) for the report's "New needs (not scored)" block.
 
-If the roster fell all the way through to the fallback (Collect inputs step 4f — no PRD table, no user
+If the roster fell all the way through to the fallback (Collect inputs step 5f — no PRD table, no user
 input, no MCP available, or MCP declined), use this literal generic starting set instead (adjust
 wording to fit the feature being reviewed):
 
@@ -557,6 +647,16 @@ wording to fit the feature being reviewed):
 Score: (tasks completed or completed with difficulty) / N × 100, where N = number of personas actually
 simulated (not always 5).
 
+**Write-back to User Synthetic: not implemented (PXL-9719 discovery).** A mechanism exists —
+`mcp__claude_ai_User_syntethics__synthetic_submit_study` accepts a `utReport` shaped
+`{scoreStrip, choiceScores[6], nngScores[10], walkthrough[], utSimulation[]}` plus `packId`,
+`dossiers`, `dossiersRenderedInChat`, and the server checks the 60/40 arithmetic. But this run
+deliberately never computes CHOICE/NNG/Overall itself — the report's own client-side JS does (see
+"Scoring" below) — so wiring a real submission would require duplicating that scoring logic here just
+to produce the numbers the server expects, and the submission path has not been validated end-to-end
+against a live run. Documented as a known gap rather than implemented speculatively; revisit if/when a
+real run is used to validate the submission shape.
+
 ---
 
 ### Scoring — computed entirely client-side, never by you
@@ -564,7 +664,7 @@ simulated (not always 5).
 CHOICE, NNG, Overall, and the verdict badge/legend are **computed by the report's own JavaScript**
 from the findings you tagged with severity + principle — not authored by you, and not baked into any
 `{{SCORE_*}}` / `{{VERDICT_*}}` placeholder (those placeholders don't exist in the template). This
-runs identically on page load and again every time a viewer marks a finding "Abaikan" in the browser
+runs identically on page load and again every time a viewer marks a finding "Dismiss" in the browser
 — there is no separate "baseline" number for you to compute.
 
 The exact mechanism, so you understand what the report will show even though you don't compute it:
@@ -572,35 +672,69 @@ The exact mechanism, so you understand what the report will show even though you
 - Each of the 6 CHOICE principles starts at 100 points; each of the 10 NNG heuristics starts at 10
   points. Every **active** (not dismissed) finding tagged to a principle/heuristic deducts from it:
 
-  | Severity | CHOICE (per principle, starts 100) | NNG (per heuristic, starts 10) |
-  | -------- | ----------------------------------- | -------------------------------- |
-  | Critical | −40                                  | −10                               |
-  | Major    | −20                                  | −5                                |
-  | Minor    | −8                                   | −2                                |
+  | Severity     | CHOICE (per principle, starts 100) | NNG (per heuristic, starts 10) |
+  | ------------ | ---------------------------------- | ------------------------------ |
+  | Critical (4) | −40                                | −10                            |
+  | Major (3)    | −20                                | −5                             |
+  | Minor (2)    | −8                                 | −2                             |
+  | Cosmetic (1) | −2                                 | −0.5                           |
 
-  (Multiple findings on the same principle/heuristic sum their deductions, floored at 0. The CHOICE
-  column is exactly 4× the NNG column — deliberate: NNG sums its 10 heuristics directly into
-  `Overall × 0.4`, while CHOICE averages its 6 principles into `Overall × 0.6`, so 1 NNG point is
-  worth 4× the Overall impact of 1 CHOICE point; the 4× deduction equalizes a Critical/Major/Minor
-  finding's real impact on Overall regardless of which framework it's in.)
+  (Multiple findings on the same principle/heuristic sum their deductions, floored at 0. The CHOICE column stays 4×
+  the NNG column because a heuristic starts at 10 and a principle at 100; the NNG average is scaled ×10 so both
+  frameworks end on the same 0–100 scale.)
 
-- `CHOICE = average of the 6 principle scores`. `NNG = sum of the 10 heuristic scores` (already
-  0–100, no averaging). `Overall = round(CHOICE × 0.6 + NNG × 0.4)`.
-- PRD Coverage and AI UT Simulation scores are never part of Overall, even when both are computed and
-  shown in the report.
+- **Frequency multiplier:** each deduction is × `0.5 + 0.5 × (personas in the finding's p ÷ personas in
+the finding's el)`, where `el` = the personas whose role can reach that screen (omit `el` and the whole
+  roster is the denominator). So `p` must list **every** eligible persona who would hit the issue —
+  under-tagging quietly discounts a finding — and `el` must be set for any screen some personas cannot
+  reach, or the finding is under-weighted. No roster → multiplier 1.
+- **Only touched principles / heuristics are averaged.** A principle or heuristic is _touched_ when at least one
+  active finding is tagged to it. `CHOICE` = average of the touched principles' scores; `NNG` = average of the
+  touched heuristics' scores × 10 (stays 0–100); a framework with no active finding is 100. So an untouched
+  principle never dilutes a real finding. `Overall = round(CHOICE × 0.6 + NNG × 0.4)`.
+- **No caps.** Overall is exactly CHOICE × 0.6 + NNG × 0.4. Persona task outcomes are shown but never change a
+  score. Because the score depends on _which_ principle or heuristic a finding is tagged to, tag the one that
+  names the actual failure, never a convenient neighbour.
+- PRD Coverage and the AI UT success percentage never add to Overall.
 
 ---
 
 ## Generate HTML report
 
-**Skip this entire section if `html_output = false`** ("Determine output mode" above). Instead,
-summarize the same findings directly in this chat: Overall/CHOICE/NNG described qualitatively (no score
-number — same rule as `{{HEADLINE}}`/`{{SUBTITLE_HTML}}` below), walkthrough highlights per persona
-(tab-equivalent — one subsection per persona), and PRD gaps if PRD mode was used. Everything else in
-"Apply review frameworks" still applies as-is; only this HTML-generation step is replaced by prose.
+**Skip this entire section if `html_output = false`** ("Determine output mode" above) and write the chat
+summary below instead. Everything in "Apply review frameworks" still applies as-is (severity, type,
+`p`, `el`, task outcomes); only this HTML-generation step is replaced.
 
-After all 4 frameworks are complete, generate the report by filling in
-`node_modules/pixel-review/assets/report-template.html`.
+### Chat summary format (`html_output = false`)
+
+**No score number anywhere** — CHOICE, NNG, Overall, and the raw score are computed only by the
+report's JavaScript, so a chat number could contradict the HTML version of the same review. The chat
+summary carries the same data in the same order, never more and never less than the HTML would:
+
+1. **Scope** — one line: mode (PRD or instruction), goal, persona roster with origin (doc / library /
+   cast), shared or escalated exploration.
+2. **Verdict** — one or two qualitative sentences on what the findings add up to (which task hit friction, for whom,
+   and how badly). No band name and no number: both come only from the report's JavaScript.
+3. **Findings** — one table, ordered Critical → Major → Minor → Cosmetic, columns: severity, issue type,
+   principle (`CHOICE · Clear`, `NNG · H4`), finding, and **"affects n of N personas who can reach it"** (from
+   `p` and `el`, so frequency stays visible without a score).
+4. **Per persona** — one subsection each: task, what they hit, quote, and the outcome (**Succeeded** /
+   **Succeeded with difficulty** / **Failed**). Mark each persona's origin.
+5. **Key takeaways**, **What went well**, **New needs (not scored)** — same three blocks as Section 03 of
+   the HTML report, plain bullets, English headings.
+6. **PRD gaps** — only if PRD mode was used.
+7. **Next step** — end with one question: which findings to fix. There are no Fix by AI / Dismiss / Discuss
+   buttons in chat, so ask directly instead of assuming.
+
+### HTML report (`html_output = true`)
+
+**Language: English.** Write all report content in English: headline, subtitle, finding titles and
+descriptions, persona narratives and simulated quotes, takeaways, PRD gap notes, Access lines, button and
+section labels. Text quoted from a source stays as sourced — User Synthetic dossiers, and quotes taken from the
+PRD or research plan, are never translated or compressed. The chat summary (`html_output = false`) follows the
+user's language.
+
+After all 4 frameworks are complete, generate the report by filling in `node_modules/pixel-review/assets/report-template.html`.
 
 **Read the template first:**
 
@@ -622,25 +756,28 @@ node /tmp/gen-pixel-report.mjs
 
 ### Placeholder reference
 
-| Placeholder                   | What to put                                                                                                                                                                       |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `{{TITLE}}`                   | `Pixel Review — <page-name> — branch: <branch>`                                                                                                                                   |
-| `{{HEADLINE}}`                | One punchy sentence summarising the overall finding — **no score number**, describe qualitatively   |
-| `{{SUBTITLE_HTML}}`           | 2–3 sentence executive summary; wrap key terms in `<strong>` — **no score number** either            |
-| `{{PROTOTYPE_URL}}`           | Full URL including path                                                                                                                                                           |
-| `{{REVIEW_DATE}}`             | ISO date e.g. `2026-08-12`                                                                                                                                                        |
-| `{{META_STATS}}`              | e.g. `3 rute · 7 states · 19 US dikaji`                                                                                                                                           |
-| `{{PRD_GAP_ROWS_HTML}}`       | Only the `<tr>` rows for each US; if PRD skipped, inject one row: `<tr><td colspan="4" style="text-align:center;color:var(--mp-text-placeholder)">PRD tidak disertakan</td></tr>` |
-| `{{CROSSFLOW_TITLE}}`         | Section 03 heading e.g. `CHOICE & NNG — Keseluruhan Halaman`                                                                                                                      |
-| `{{CROSSFLOW_ANALYSIS_HTML}}` | Cross-flow prose paragraph                                                                                                                                                        |
-| `{{AI_UT_INSIGHT}}`           | 1–2 sentence aggregate insight across ALL personas — sits above the persona tab bar, not inside a tab |
-| `{{PERSONA_TAB_BAR_HTML}}`    | ONE `.persona-tabs` bar (one `.tab-btn` per persona), rendered once above Section 01 — not repeated inside either section. `switchPersonaTab()` toggles the matching pane in both Section 01 and Section 02 by `data-persona`, so one bar controls both |
-| `{{PERSONA_TABS_HTML}}`       | Section 01 "Persona" — one tab pane per persona in the resolved roster, IDENTITY only, no tab bar (that's `{{PERSONA_TAB_BAR_HTML}}` above). Each pane = that persona's header (name/role, mini CHOICE/NNG score line) + either `.persona-dossier` (full User Synthetic dossier, verbatim, for `hasDossier: true` personas) or `.persona-identity` (Goal/Pain, for PRD-table/user-input personas) — see HTML comments in template |
-| `{{AI_UT_TABS_HTML}}`         | Section 02 "Walkthrough & AI UT Simulation" — one tab pane per persona (same `data-persona` slugs/order as Section 01, no tab bar here either), NARRATIVE ONLY: task/quote/completion (`.persona-body`). No state-cards here — see `{{WALKTHROUGH_STATES_HTML}}` below |
-| `{{WALKTHROUGH_STATES_HTML}}` | Section 02, the actual screenshots + findings. **Shared run (default)**: ONE flat sequence of state cards, not tabbed — every finding-item gets a `.finding-personas` row of small `.persona-chip` badges (from its `p` array) instead of duplicating screenshots per persona. **Escalated run**: one tab pane per persona (same slugs as above), each with their own full set of state cards, no badges needed since the tab already scopes it. Minor+ findings only, same rule as before either way — see HTML comments in template for both shapes |
-| `{{FD_JSON}}`                 | JS object: `{ fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical\|Major\|Minor', p:['persona-slug', ...] } }` — `p` lists every persona-slug who encountered this finding's state (single entry normally, multiple when deduped across personas). The report's JS computes CHOICE/NNG/Overall/verdict (and, per persona, a filtered sub-score) from this, see "Scoring" above |
-| `{{PRD_SCORE}}`               | Score integer or `N/A`                                                                                                                                                            |
-| `{{EXPORT_FILENAME}}`         | `<branch-slug>-<YYYYMMDD>[-N]-pixel-review.md`                                                                                                                                    |
+| Placeholder                   | What to put                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{{TITLE}}`                   | `Pixel Review — <page-name> — branch: <branch>`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `{{HEADLINE}}`                | One punchy sentence summarising the overall finding — **no score number**, describe qualitatively                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `{{SUBTITLE_HTML}}`           | 2–3 sentence executive summary; wrap key terms in `<strong>` — **no score number** either                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `{{PROTOTYPE_URL}}`           | Full URL including path                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `{{REVIEW_DATE}}`             | ISO date e.g. `2026-08-12`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `{{PRD_GAP_ROWS_HTML}}`       | Only the `<tr>` rows for each US; if PRD skipped, inject one row: `<tr><td colspan="4" style="text-align:center;color:var(--mp-text-placeholder)">PRD not provided</td></tr>`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `{{CROSSFLOW_TITLE}}`         | Section 03 heading e.g. `CHOICE & NNG — Whole Flow`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `{{CROSSFLOW_ANALYSIS_HTML}}` | Cross-flow prose paragraph                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `{{AI_UT_INSIGHT}}`           | 1–2 sentence aggregate insight across ALL personas — sits above the persona tab bar, not inside a tab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `{{PERSONA_TAB_BAR_HTML}}`    | ONE `.persona-tabs` bar (one `.tab-btn` per persona), rendered once above Section 01 — not repeated inside either section. `switchPersonaTab()` toggles the matching pane in both Section 01 and Section 02 by `data-persona`, so one bar controls both                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `{{PERSONA_TABS_HTML}}`       | Section 01 "Persona" — one tab pane per persona in the resolved roster, IDENTITY only, no tab bar (that's `{{PERSONA_TAB_BAR_HTML}}` above). Each pane = that persona's header (name/role, mini CHOICE/NNG score line) + either `.persona-dossier` (full User Synthetic dossier, verbatim, for `hasDossier: true` personas) or `.persona-identity` (Goal/Pain, for PRD-table/user-input personas) — see HTML comments in template                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `{{AI_UT_TABS_HTML}}`         | Section 02 "Walkthrough & AI UT Simulation" — one tab pane per persona (same `data-persona` slugs/order as Section 01, no tab bar here either), NARRATIVE ONLY: task/quote/completion (`.persona-body`). No state-cards here — see `{{WALKTHROUGH_STATES_HTML}}` below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `{{WALKTHROUGH_STATES_HTML}}` | Section 02, the actual screenshots + findings. **Shared run (default)**: ONE flat sequence of state cards, not tabbed — every finding-item gets a `.finding-personas` row of small `.persona-chip` badges (from its `p` array) instead of duplicating screenshots per persona. **Escalated run**: one tab pane per persona (same slugs as above), each with their own full set of state cards, no badges needed since the tab already scopes it. **Every `.state-card` on a screen not all personas can reach carries `data-el="slug1,slug2"` (the personas whose role can reach it); the page hides that card for every other persona's tab. Omit `data-el` on screens everyone can reach.** Minor+ findings get a screenshot; Cosmetic-only states get a card without one; Passed states get none, either way — see HTML comments in template for both shapes |
+| `{{FD_JSON}}`                 | JS object: `{ fN: { d:'title', sc:'Screen/State', fw:'FW · Principle', sv:'Critical\|Major\|Minor\|Cosmetic', ty:'Wayfinding\|Functionality\|Design & Labeling\|Context understanding', p:['persona-slug', ...], el:['persona-slug', ...] } }` — for a copy finding `fw` becomes `'FW · Principle · category'`. `p` lists every persona-slug who would encounter this finding; `el` lists the persona-slugs whose role can reach that screen — omit it only when every persona can (the report weights deductions by `p` ÷ `el`). The report's JS computes CHOICE/NNG/Overall/verdict (and, per persona, a filtered sub-score) from the first two `fw` segments; `ty` only groups findings, see "Scoring" above                                                                                                                                                 |
+| `{{TASKS_JSON}}`              | JS object of AI UT task outcome per persona: `{ 'persona-slug': 'ok' \| 'difficulty' \| 'fail' }` (Succeeded / Succeeded with difficulty / Failed). `{}` when there is no roster. Used as the roster size (frequency denominator) and shown in the persona tabs; never changes a score — must match the status badges you wrote in `{{AI_UT_TABS_HTML}}`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `{{TAKEAWAYS_HTML}}`          | 3–4 themes as one `<ul><li>` (plain bullets, never numbered): `<li><strong>Theme</strong> — what users struggled with. <strong>Expected outcome:</strong> …</li>`. A theme groups several findings; write them after the findings as a synthesis, not one per finding. Block heading in the report is "Key takeaways"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `{{POSITIVES_HTML}}`          | `<ul><li>` of what worked well (Passed states and strong patterns), at least one item when anything passed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `{{NEEDS_HTML}}`              | `<ul><li>` of new needs/ideas personas voiced — not usability issues, never scored. If none: `<p>No new needs surfaced.</p>`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `{{PRD_SCORE}}`               | Score integer or `N/A`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `{{EXPORT_FILENAME}}`         | `<branch-slug>-<YYYYMMDD>[-N]-pixel-review.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 `{{SCORE_OVERALL}}`, `{{SCORE_CHOICE}}`, `{{SCORE_NNG}}`, `{{VERDICT_BADGE}}`, `{{VERDICT_TEXT}}`, and
 `{{SCORE_LEGEND_HTML}}` **do not exist as placeholders** — the template computes and fills all of them

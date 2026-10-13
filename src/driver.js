@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 // Playwright automation driver for the /pixel-review Claude Code command.
-// Called by the command as: node node_modules/pixel-review/src/driver.js --url <url> --out-dir <path> [--flow-config <path>] [--routes r1,r2] [--max-routes 20] [--no-profile] [--local-storage k=v,k2=v2]
+// Called by the command as: node node_modules/pixel-review/src/driver.js --url <url> --out-dir <path> [--flow-config <path>] [--routes r1,r2] [--max-routes 20] [--no-profile] [--chrome-profile] [--local-storage k=v,k2=v2]
+//        node node_modules/pixel-review/src/driver.js --login --url <url>     (one-time sign-in, opens a visible window)
+//
+// Session: by default the run reuses a dedicated Playwright profile (~/.cache/pixel-review/profile),
+// outside the repo, that you sign in to once with --login. It never reads your Chrome profile, so it
+// works in sandboxed shells where that folder is blocked, and never touches your other sites' cookies.
+//   --login           open the dedicated profile in a visible window so you can sign in, then close it
+//   --no-profile      fresh, signed-out profile (for prototypes without auth)
+//   --chrome-profile  legacy: copy/use your real Chrome profile (needs read access to it)
 // --local-storage: "key=value" pairs, comma-separated. Seeded via addInitScript so they are
 // present BEFORE the app boots on every navigation — a prototype that reads a flag at startup
 // (demo mode, feature toggles) cannot be reached by setting storage after load, and a
@@ -31,7 +39,10 @@ for (let i = 2; i < process.argv.length; i++) {
 const prototypeUrl = args.url;
 const outDir = args["out-dir"];
 const maxRoutes = parseInt(args["max-routes"] ?? "20", 10);
-const useProfile = !args["no-profile"];
+const loginMode = !!args.login;
+const profileMode = args["no-profile"] ? "fresh" : args["chrome-profile"] ? "chrome" : "dedicated";
+const useProfile = profileMode === "chrome";
+const dedicatedProfile = path.join(os.homedir(), ".cache/pixel-review/profile");
 // --flow-config: path to JSON flow config (highest priority, PRD-driven state map)
 const flowConfigPath = args["flow-config"] ?? null;
 const flowConfig =
@@ -58,12 +69,13 @@ const localStorageSeed = args["local-storage"]
     )
   : null;
 
-if (!prototypeUrl || !outDir) {
+if (!prototypeUrl || (!outDir && !loginMode)) {
   console.error("Usage: node node_modules/pixel-review/src/driver.js --url <url> --out-dir <path>");
+  console.error("       node node_modules/pixel-review/src/driver.js --login --url <url>");
   process.exit(1);
 }
 
-fs.mkdirSync(outDir, { recursive: true });
+if (outDir) fs.mkdirSync(outDir, { recursive: true });
 
 // ── Chrome profile setup ────────────────────────────────────────────────────
 
@@ -255,6 +267,14 @@ async function executeFlowStep(page, trigger) {
       const sel = sepIdx === -1 ? rest : rest.slice(0, sepIdx);
       const idx = sepIdx === -1 ? 0 : Number(rest.slice(sepIdx + 1)) || 0;
       await page.click(`${sel} >> nth=${idx}`, { timeout: 5000 }).catch(() => {});
+    } else if (step.startsWith("click-force:")) {
+      // click-force:<selector> — a real mouse click that skips Playwright's
+      // actionability checks. `click:` waits for the target to be "enabled", and
+      // Playwright counts anything under [aria-disabled=true] as disabled, so a
+      // click on an inert card (e.g. to test that it dismisses an open popover)
+      // times out silently and the screenshot shows nothing happened.
+      const sel = step.slice(12);
+      await page.click(sel, { timeout: 5000, force: true }).catch(() => {});
     } else if (step.startsWith("click:")) {
       const sel = step.slice(6);
       await page.click(sel, { timeout: 5000 }).catch(() => {});
@@ -266,6 +286,29 @@ async function executeFlowStep(page, trigger) {
             (e) => e.textContent?.trim() === t
           );
           if (el) el.click();
+        }, text)
+        .catch(() => {});
+    } else if (step.startsWith("click-contains:")) {
+      // Broadest match, for rows that are neither buttons nor option items — a
+      // chat-list row, a table row, a card. click-text only searches
+      // button/a/[role=button]/.mp-button, so a list row whose only text is a
+      // name is invisible to it.
+      //
+      // Also scrolls the match into view first: a row below the fold is in the
+      // DOM and clickable via .click(), but the screenshot afterwards would show
+      // an un-scrolled list, which reads as "the click did nothing".
+      const text = step.slice(15);
+      await page
+        .evaluate((t) => {
+          const all = [...document.querySelectorAll("div, li, tr, a, button, [role=row]")];
+          const matches = all.filter((e) => (e.textContent ?? "").includes(t));
+          // Innermost match that still has a real box — avoids clicking a
+          // wrapper that spans the whole list.
+          const sized = matches.filter((e) => e.getBoundingClientRect().height > 0);
+          const el = sized.reverse().find((e) => e.getBoundingClientRect().height < 200);
+          if (!el) return;
+          el.scrollIntoView({ block: "center" });
+          el.click();
         }, text)
         .catch(() => {});
     } else if (step.startsWith("select-text:")) {
@@ -340,6 +383,23 @@ async function executeFlowStep(page, trigger) {
       } catch {
         // ignore — target may not exist or may not be focusable
       }
+    } else if (step.startsWith("upload:")) {
+      // upload:<input-selector>|<path>[;<path>...] — attach local file(s) to an
+      // <input type=file> via Playwright's setInputFiles. File inputs are usually
+      // hidden (display:none) behind a styled "attach" button that opens the OS
+      // picker, which a headless run can never drive, so a chip/preview state that
+      // only exists after a file is picked is otherwise unreachable. Paths are
+      // separated by ";" because "," already separates trigger steps; relative
+      // paths resolve against the current working directory.
+      const rest = step.slice(7);
+      const sepIdx = rest.indexOf("|");
+      const sel = rest.slice(0, sepIdx);
+      const files = rest
+        .slice(sepIdx + 1)
+        .split(";")
+        .map((f) => path.resolve(f.trim()))
+        .filter(Boolean);
+      await page.setInputFiles(sel, files, { timeout: 5000 }).catch(() => {});
     } else if (step.startsWith("wait:")) {
       await page.waitForTimeout(parseInt(step.slice(5), 10));
     } else if (step === "scroll") {
@@ -603,9 +663,30 @@ async function exploreRoute(page, url) {
   const chromeProfile = path.join(os.homedir(), "Library/Application Support/Google/Chrome");
   const tempProfile = path.join(os.tmpdir(), "pw-pixel-review-profile");
 
+  if (loginMode) {
+    fs.mkdirSync(dedicatedProfile, { recursive: true });
+    const loginContext = await chromium.launchPersistentContext(dedicatedProfile, {
+      headless: false,
+      viewport: null,
+      ignoreHTTPSErrors: true
+    });
+    const loginPage = await loginContext.newPage();
+    await loginPage.goto(prototypeUrl).catch(() => {});
+    console.log(
+      "\n🔐 Sign in in the window that just opened, then CLOSE the window to save the session."
+    );
+    console.log(`   Profile: ${dedicatedProfile}\n`);
+    await new Promise((resolve) => loginContext.on("close", resolve));
+    console.log("✅ Session saved. Run the review again without --login.");
+    process.exit(0);
+  }
+
   let userDataDir;
-  if (!useProfile) {
+  if (profileMode === "fresh") {
     userDataDir = path.join(os.tmpdir(), "pw-pixel-review-fresh");
+  } else if (profileMode === "dedicated") {
+    fs.mkdirSync(dedicatedProfile, { recursive: true });
+    userDataDir = dedicatedProfile;
   } else if (isChromeRunning()) {
     console.log("  ℹ️  Chrome is running — copying profile to temp dir...");
     copyProfileToTemp(chromeProfile, tempProfile);
@@ -614,9 +695,15 @@ async function exploreRoute(page, url) {
     userDataDir = chromeProfile;
   }
 
+  const profileLabel = {
+    fresh: "Fresh (no session)",
+    dedicated: "Dedicated Playwright profile (sign in once with --login)",
+    chrome: "Chrome (existing session)"
+  }[profileMode];
+
   console.log(`\n🎭 Pixel Review — Playwright Explorer`);
   console.log(`   URL: ${prototypeUrl}`);
-  console.log(`   Profile: ${useProfile ? "Chrome (existing session)" : "Fresh (no session)"}\n`);
+  console.log(`   Profile: ${profileLabel}\n`);
 
   const context = await chromium.launchPersistentContext(userDataDir, {
     channel: useProfile ? "chrome" : undefined,
@@ -626,6 +713,29 @@ async function exploreRoute(page, url) {
   });
 
   const page = await context.newPage();
+
+  // The dedicated profile starts signed out. Fail fast with the fix instead of screenshotting a login
+  // page for every state (the prototype redirects to /login, or to the auth provider, when signed out).
+  if (profileMode === "dedicated") {
+    try {
+      await page.goto(origin, { waitUntil: "domcontentloaded", timeout: 15_000 });
+      await page.waitForTimeout(2500);
+      const landed = new URL(page.url());
+      if (landed.origin !== origin || landed.pathname.startsWith("/login")) {
+        console.error(
+          "\n🔒 Not signed in — the prototype redirected to " + landed.origin + landed.pathname
+        );
+        console.error(`   Run once (opens a window, sign in, then close it):`);
+        console.error(
+          `   node node_modules/pixel-review/src/driver.js --login --url ${prototypeUrl}\n`
+        );
+        await context.close();
+        process.exit(2);
+      }
+    } catch {
+      /* server unreachable or slow — let the normal run report the real error */
+    }
+  }
 
   if (localStorageSeed) {
     await page.addInitScript((seed) => {
